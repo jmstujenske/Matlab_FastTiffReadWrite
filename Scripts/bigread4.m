@@ -23,16 +23,9 @@ function [imData,info]=bigread4(path_to_file,sframe,num2read,info,known_gap)
 %info=TiffTags and other identifying information (only for specified
 %frames)
 %
-%Modification of bigread2, originally written by D. Peterka, and provided
-%in CaImAn package under GNU license:
-%https://github.com/flatironinstitute/CaImAn-MATLAB
-% This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
-%
-%Originally based on a partial solution posted on
+%reads tiff files in Matlab bigger than 4GB, allows reading from sframe to
+%sframe+num2read-1 frames of the tiff - in other words, you can read page 200-
+%300 without rading in from page 1. Originally based on a partial solution posted on
 %Matlab Central (http://www.mathworks.com/matlabcentral/answers/108021-matlab-only-opens-first-frame-of-multi-page-tiff-stack)
 %Darcy Peterka 2014, v1.0
 %Darcy Peterka 2014, v1.1
@@ -101,6 +94,9 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         numFrames=length(info);
         %     numFrames=blah(1);
     end
+
+    %     numFrames=info.UnknownTags(end).ID;
+    % numFrames=str2double(info.ImageDescription(strfind(info.ImageDescription,'frames=')+7:strfind(info.ImageDescription,'mode=')-1));
     %deal with ImageJ BigTiff files:
     if isfield(info,'ImageDescription')
         if contains(path_to_file,'.ome')
@@ -118,7 +114,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 imData=cat(3,data{1}{:,1});
                 return;
             end
-        elseif numFrames==1 && num2read~=1 %ImageJ format
+        elseif numFrames==1 && num2read~=1
             numFramesStr = regexp(info(1).ImageDescription, 'images=(\d*)', 'tokens');
             if ~isempty(numFramesStr)
                 numFrames = max(numFrames,str2double(numFramesStr{1}{1}));
@@ -248,12 +244,12 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
 
         % Use low-level File I/O to read the file
 
-%         if ~isfield(info,'FileSize')
-%             fseek(fp,0,'eof');
-%             filesize = ftell(fp);
-%         else
-%             filesize=info.FileSize;
-%         end
+        if ~isfield(info,'FileSize')
+            fseek(fp,0,'eof');
+            filesize = ftell(fp);
+        else
+            filesize=info.FileSize;
+        end
         % The StripOffsets field provides the offset to the first strip. Based on
         % the INFO for this file, each image consists of 1 strip.
         %First let's test if the data is evenly spaced...
@@ -265,7 +261,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                     uneven_flag=1;
                 end
             else
-                uneven_flag=0;%%probably imagej file--let's assume even spacing;
+                uneven_flag=0;%%probably imagej 'bigtiff' --let's assume even spacing;
             end
         else
             uneven_flag=2;
@@ -278,11 +274,47 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 else
                     %rare that we will need to calculate gap, but added this just in
                     %case...
-                    stripstarts=vertcat(info(1:end).(offset_field));
-                    gapimages=nanmean(diff(stripstarts(:,1))-sum(info(1).(byte_field)));
-                    if gapimages<0
-                        gapimages=nanmean(diff(stripstarts(:,1))-(info(1).(byte_field)(1)));
+                    if length(info)==1 %imagej bigtiff
+                        gapimages=0;
+                    else
+                        stripstarts=vertcat(info(1:end).(offset_field));
+                        gapimages=nanmean(diff(stripstarts(:,1))-sum(info(1).(byte_field)));
+                        if gapimages<0
+                            gapimages=nanmean(diff(stripstarts(:,1))-(info(1).(byte_field)(1)));
+                        end
                     end
+                    %         tifffields=fields(info);
+                    %         %define valid tiff headers, to distinguish from fields in tiff info
+                    %         %that are not actually in header file
+                    %         Dic={'NewSubfileType','SubfileType','ImageWidth','ImageHeight',...
+                    %             'BitsPerSample','Compression','PhotometricInterpretation',...
+                    %             'Treshholding','CellWidth','CellLength','FillOrder',...
+                    %             'DocumentName','ImageDescription','Make','Model',...
+                    %             'StripOffsets','Orientation','SamplesPerPixel',...
+                    %             'RowsPerStrip','StripByteCounts','MinSampleValue','MaxSampleValue',...
+                    %             'Xresolution','Yresolution','PlanarConfiguration','PageName',...
+                    %             'XPosition','YPosition','FreeOffsets','FreeByteCounts',...
+                    %             'GrayResponseUnit','GrayResponseCurve','T4Options','T6Options',...
+                    %             'ResolutionUnit','PageNumber','TransferFunction','Software',...
+                    %             'DateTime','Artist','HostComputer','Predictor',...
+                    %             'ColorImageType','ColorList','Colormap','HalftoneHints',...
+                    %             'TileWidth','TileLength','TileOffsets','TileByteCounts',...
+                    %             'BadFaxLines','SubIFDs','InkSet','InkNames',...
+                    %             'NumberOfInks','DotRange','TargetPrinter','ExtraSamples',...
+                    %             'SampleFormat','MinSampleValue','MaxSampleValue','TransferRange',...
+                    %             'ClipPath','Copyright'};
+                    % nfields=0;for tagrep=1:length(tifffields);nfields=nfields+any(strcmp(deblank(tifffields{tagrep}),Dic));end
+                    %         if filesize>4e9 && length(info)>1 %BigTiff likely unless imagej file
+                    %         lengthfids=16+nfields*20;
+                    %         else
+                    %             lengthfids=6+nfields*12; %Standard tiff
+                    %         end
+                    %         if he<lengthfids %FIDS likely not at the beginning
+                    %         gapimages=max(0,floor((filesize-he-numFrames*(sum(info(1).(byte_field))+lengthfids))/numFrames));
+                    %         disp('TiffTags are at end of file. Calculated gap may be wrong if Tiff includes non-standard tiff tags.')
+                    %         else
+                    %                     gapimages=max(0,floor((filesize-he-numFrames*(sum(info(1).(byte_field))))/numFrames));
+                    %         end
 
                 end
                 if gapimages~=0
@@ -451,9 +483,6 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         if strncmp(off_type,'tile',4)
             imData=imData(1:info(1).(size_fields{2}),1:info(1).(size_fields{1}),:);
         end
-        %     catch
-        %         disp('Something went wrong. Will use Tiff class.');
-        %     end
     else
         disp('File compressed. Will use Tiff class.');
     end
@@ -463,6 +492,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         %%this will be our first backup plan. About 50% slower for some types of
         %%files.
         %If Tiff class fails, will try bioformats plugin.
+        disp('Opening failed. Trying internal tiff class.')
         if exist('fp','var');fclose(fp);end
         try
             tiff_file=Tiff(path_to_file,'r');
@@ -474,7 +504,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             end
             imData(:,:,lastframe) = read(tiff_file);
         catch
-            disp('File opening failed for unknown reasons. Will try to open with bioformats plugin as alternative.')
+            disp('File opening failed. Trying bioformats plugin.')
             if ~exist('bfopen.m','file')
                 error('Please install bioformats plugin: https://www.openmicroscopy.org/bio-formats/downloads/');
             end
