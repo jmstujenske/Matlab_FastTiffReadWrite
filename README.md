@@ -1,5 +1,6 @@
 # Matlab_FastTiffReadWrite
  Functions to read tiffs and write tiffs quickly in matlab
+ J.M. Stujenske
 
 Core functions:
 
@@ -29,14 +30,14 @@ Writing speed will NOT be strictly linear with file size. The writing slows down
 Rough benchmarks (will depend on your hardware. SSD highly recommended):
 
 512x512x50000 uint16 tiff stack should read in about 2 minutes. Speed up is about 20% faster than bigread2.
-(If tifftags are unevenly spaced as done by functions like saveastiff, will be slower).
+(If tifftags are unevenly spaced as done by functions like saveastiff, may be slower and the same speed as bigread2).
 
 The same data should write to disk in about 2.5 minutes.
 
-Reading and writing should only be slightly slower than for binary files, with the notable disadvantage of not being able to be memory mapped.
+Reading and writing should only be slightly slower than for binary files.
+If tiff files are saved with FastTiffSave, they can be memory mapped in Matlab using the memory_map_tiff.m function!
 
 If RAM on your device is too low to hold all image data in memory at the same time, you can load in chunks and directly use the
 Fast_BigTiff_Write class to write in a loop.
 
-It's that simple!
 All questions and comments to jms7008@med.cornell.edu
