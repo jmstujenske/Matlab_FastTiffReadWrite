@@ -46,15 +46,18 @@ classdef Fast_Tiff_Write  < handle
         TagTypes
         DataTypes
         mylocation
+        imagedesc
     end
     
     methods
-        function obj = Fast_Tiff_Write(filename,pixelsize,compression)
+        function obj = Fast_Tiff_Write(filename,pixelsize,compression,imagedesc)
             %FAST_TIFF Construct an instance of this class
             %pixelsize in (dots per centimeter)
             %   Detailed explanation goes here
             if nargin<2||isempty(pixelsize),pixelsize=1;end
             if nargin<3||isempty(compression),compression=0;end %no compression by default
+            if nargin<4||isempty(imagedesc),imagedesc=[];end
+            obj.imagedesc=imagedesc;
             [p,~,~] = fileparts(mfilename('fullpath'));obj.mylocation=p;
             obj.filename = filename;
             obj.pixelsize = pixelsize; %pixels / um
@@ -70,10 +73,7 @@ classdef Fast_Tiff_Write  < handle
             obj.Images_Written=0;
             obj.Closed = false;
         end
-        function WriteIMG(obj,img,imagedesc)
-            if nargin<3
-                imagedesc=[];
-            end
+        function WriteIMG(obj,img)
             if obj.Closed,warning('Ignoring attempted write on closed image');return;end
             %assume equal images will be written with equal IFD's
             if isempty(obj.TagList) %construct the TagList from this img
@@ -138,10 +138,10 @@ classdef Fast_Tiff_Write  < handle
                 obj.TagList(37:39) = obj.TifTag(obj,'PlanarConfiguration','short',1,1); %1 chunky 2 planar
                 obj.TagList(40:42) = obj.TifTag(obj,'ResolutionUnit','short',1,3);%pixels per cm
                 obj.TagList(43:45) = obj.TifTag(obj,'SampleFormat','short',1,sf);
-                 if ~isempty(imagedesc)
-                    desc_l=length(imagedesc);
+                 if ~isempty(obj.imagedesc)
+                    desc_l=length(obj.imagedesc);
                 pos = ftell(obj.fid);
-                    fwrite(obj.fid,imagedesc,'uint8');
+                    fwrite(obj.fid,obj.imagedesc,'uint8');
                     obj.TagList(46:48) = obj.TifTag(obj,'ImageDescription','ascii',desc_l,pos);
                 end
             else %check if the image is equal to the first image
