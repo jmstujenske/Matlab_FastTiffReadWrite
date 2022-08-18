@@ -90,7 +90,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             numFrames=blah(1);
         end
     else
-        info=info(1:num2read+sframe-1);
+        info=info(sframe:num2read+sframe-1);
         numFrames=length(info);
         %     numFrames=blah(1);
     end
