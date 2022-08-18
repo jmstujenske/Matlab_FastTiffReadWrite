@@ -35,7 +35,7 @@ Rough benchmarks (will depend on your hardware. SSD highly recommended):
 The same data should write to disk in about 2.5 minutes.
 
 Reading and writing should only be slightly slower than for binary files.
-If tiff files are saved with FastTiffSave, they can be memory mapped in Matlab using the memory_map_tif.m function!
+If tiff files are saved with FastTiffSave, they can be memory mapped in Matlab using the memory_map_tiff.m function!
 
 If RAM on your device is too low to hold all image data in memory at the same time, you can load in chunks and directly use the
 Fast_BigTiff_Write class to write in a loop.
