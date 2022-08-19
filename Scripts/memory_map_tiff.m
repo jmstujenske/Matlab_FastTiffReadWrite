@@ -1,4 +1,4 @@
-function m=memory_map_tiff(filename,opt)
+function [m,n_ch]=memory_map_tiff(filename,opt,n_ch)
 %m=memory_map_tiff(filename,opt)
 %Memory map output of FastTiffSave
 %
@@ -46,7 +46,13 @@ bd=info(1).BitsPerSample;
     else
         error('Size Tags not recognized.')
     end
+    if nargin<3 || isempty(n_ch)
+    if isfield(info,'ImageDescription')
     n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
+    else
+        n_ch=[];
+    end
+    end
     if isempty(n_ch);n_ch=1;end
     
     switch opt
