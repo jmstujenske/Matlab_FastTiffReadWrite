@@ -138,9 +138,11 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         num2read=1;
     end
     if sframe>numFrames
-        sframe=numFrames;
-        num2read=1;
-        disp('Starting frame has to be less than number of total frames. Will read the last frame.');
+%         sframe=numFrames;
+%         num2read=1;
+        disp('Starting frame has to be less than number of total frames. Returning empty.');
+        imData=[];info=[];
+        return;
     end
     if (num2read+sframe<= numFrames+1)
         lastframe=num2read+sframe-1;

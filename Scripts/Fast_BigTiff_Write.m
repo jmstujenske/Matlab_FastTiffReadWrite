@@ -144,7 +144,7 @@ classdef Fast_BigTiff_Write  < handle
                     desc_l=length(obj.imagedesc);
                 pos = ftell(obj.fid);
                     fwrite(obj.fid,obj.imagedesc,'uint8');
-                    obj.TagList(76:78) = obj.TifTag(obj,'ImageDescription','ascii',desc_l,pos);
+                    obj.TagList(76:80) = obj.TifTag(obj,'ImageDescription','ascii',desc_l,pos);
                 end
             else %check if the image is equal to the first image
                 if ndims(img)~=length(obj.imsize),error('different image dimensions');end

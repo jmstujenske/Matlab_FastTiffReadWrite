@@ -225,7 +225,7 @@ if NextIFD~=0 && lasttag~=1
             len_offs=length(info(1).StripOffsets);
             n_tifs=min(lasttag,n_tifs);
             info=repmat(info(1),n_tifs,1);
-            temp=mat2cell(repmat(mattoassign,n_tifs,1)+cumsum([0;repmat(double(data_size+fid_spacer),n_tifs-1,1)]),ones(1,n_tifs),len_offs);
+            temp=mat2cell(repmat(mattoassign,n_tifs,1)+cumsum([0;repmat(double(sizeofeachentry+fid_spacer),n_tifs-1,1)]),ones(1,n_tifs),len_offs);
             [info(1:n_tifs).StripOffsets]=temp{:};
         else
             disp('Reading Tiff Info with unevenly spaced FIDs. This may take a while.')
@@ -579,8 +579,10 @@ for j=1:IfdLength
         TiffInfo.( ['private_' num2str(TagCode)])=double(TagValue);
     else
         TName=TagName{n(1)};
-        TiffInfo.(TName)=double(TagValue);
-        
+        if ~ischar(TagValue)
+            TagValue=double(TagValue);
+        end
+        TiffInfo.(TName)=TagValue;
         % PhotometricInterpretation
         if(TagCode==262)
             switch(TagValue)
