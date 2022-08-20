@@ -60,8 +60,10 @@ bd=info(1).BitsPerSample;
     format_string=cell(n_ch,3);
     for ch_rep=1:n_ch
         format_string(ch_rep,:)={form,[info(1).(size_fields{1}) info(1).(size_fields{2})],['channel',num2str(ch_rep)]};
+        rep=length(info)/n_ch;
     end
         case 'matrix'
       format_string={form,[info(1).(size_fields{1}) info(1).(size_fields{2})*n_ch length(info)/n_ch],'allchans'};
+      rep=1;
     end
-        m = memmapfile(filename, 'Offset', offset, 'Format',format_string,'Writable',true);
+        m = memmapfile(filename, 'Offset', offset, 'Format',format_string,'Writable',true,'Repeat',rep);
