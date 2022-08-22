@@ -17,10 +17,8 @@ end
 info=readtifftags(filename);
   if isfield(info,'StripOffsets')
         offset_field='StripOffsets';
-        off_type='strip';
     elseif isfield(info,'TileOffsets')
         offset_field='TileOffsets';
-        off_type='tile';
     else
         error('Neither strip nor tile format.')
   end
@@ -64,6 +62,7 @@ bd=info(1).BitsPerSample;
     end
         case 'matrix'
       format_string={form,[info(1).(size_fields{1}) info(1).(size_fields{2})*n_ch length(info)/n_ch],'allchans'};
-      rep=1;
+
+rep=1;
     end
         m = memmapfile(filename, 'Offset', offset, 'Format',format_string,'Writable',true,'Repeat',rep);
