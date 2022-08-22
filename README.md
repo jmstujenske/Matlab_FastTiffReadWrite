@@ -2,20 +2,39 @@
  Functions to read tiffs and write tiffs quickly in matlab
  J.M. Stujenske
 
-Core functions:
-
+1.Read / Write Functions:
 bigread4.m -- reads standard and BigTiffs quickly; calls readtifftags.m
 
 FastTiffSave.m -- saves standard and BigTiffs quickly; calls Fast_BigTiff_Write.m and Fast_Tiff_Write.m
 
+Example usage:
+imData=bigread4('C:\Users\Admin\Desktop\test.tif');
+FastTiffSave(imData,'C:\Users\Admin\Desktop\test_copy.tif');
+
+2. Memory mapping function
+memory_map_tiff -- memory map a tif saved by FastTiffSave, to read quickly, like you could for a binary file
+%May work for other tiffs, but notably does not work for tiffs saved with saveastiff or the Tiff class
+
+Example usage:
+m = memory_map_tiff('test.tif',[],2);
+channel1_frame1=m.Data(1).channel1;
+m = memory_map_tiff('test.tif','matrix',2);
+info = readtifftags;
+tiff_height=info(1).ImageHeight;
+allchannel1data=m.Data.allchans(:,1:tiff_height,:);
+
+3. Visualizing tiffs
+TiffViewer -- object class for viewing tiffs (like in ImageJ but much faster, images read virtually with memory mapping but not slow like in ImageJ)
+
+example usage:
+tv=TiffViewer('test.tif'); %Figure will pop up to visual the tif
+%Note, that this requires the tif to be memory map-able
+
+Explanation:
 Reading based on script by D. Peterka (modified by E. Pnevmatikakis, currently utilized in CaImAn package and others)
 
 Writing based on solution by R. Harkes:
 https://github.com/rharkes/Fast_Tiff_Write
-
-Example usage:
-imData=bigread4('C:\Users\Admin\Desktop\test.tif');
-FastTiffSave(imData,'C:\Users\Admin\Desktop\test_copy.tif');
 
 This should give ImageJ speeds for tiff reading and writing, if not quicker.
 
