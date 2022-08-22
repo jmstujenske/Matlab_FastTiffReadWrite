@@ -1,4 +1,4 @@
-classdef TiffViewer
+classdef TiffViewer < handle
     %Class to view tiffs using memory mamping
     
     properties
@@ -16,7 +16,7 @@ classdef TiffViewer
             obj.memmap = memory_map_tiff(filename);
             obj.memmap_data=obj.memmap.Data;
             scaleval=.6;
-            obj.figure=figure('Units','normalized','Position',[.1 .1 scaleval scaleval],'AutoResizeChildren','off');
+            obj.figure=figure('Units','normalized','Position',[.1 .1 scaleval scaleval],'AutoResizeChildren','off','CloseRequestFcn',@(x,event) closefcn(x,event,obj));
             obj.n_ch=length(fieldnames(obj.memmap_data));
             info = readtifftags(filename);
             obj.numFrames=length(info)/obj.n_ch;
@@ -27,8 +27,8 @@ classdef TiffViewer
             end
             myslider(obj);
             data.CurrFrame=1;
-            disp_frame(tv)
             guidata(obj.figure,data);
+            disp_frame(obj)
         end
         
         function disp_frame(obj,frame)
@@ -74,4 +74,9 @@ end
 set(hslide,'Value',data.CurrFrame);
 disp_frame(tv);
 guidata(tv.figure,data);
+end
+
+function closefcn(obj,event,tv)
+delete(tv);
+delete(obj);
 end
