@@ -215,7 +215,11 @@ if NextIFD~=0 && lasttag~=1
                 n_tifs=n_tifs+1;
                 fseek(fp,sizeofeachentry,'cof');
                 fp_off=fread(fp,1,form);
-                if fp_off==0 || n_tifs==lasttag
+                if isempty(fp_off)
+                    warning('Tif tags are incomplete.');
+				break
+                end
+                if  fp_off==0 || n_tifs==lasttag
                     break
                 else
                     fseek(fp,fid_spacer,'cof');
