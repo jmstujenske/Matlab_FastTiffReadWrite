@@ -2,7 +2,7 @@
  Functions to read tiffs and write tiffs quickly in matlab
  J.M. Stujenske
 
-1.Read / Write Functions:
+ 1. Read / Write Functions:
 bigread4.m -- reads standard and BigTiffs quickly; calls readtifftags.m
 
 FastTiffSave.m -- saves standard and BigTiffs quickly; calls Fast_BigTiff_Write.m and Fast_Tiff_Write.m
