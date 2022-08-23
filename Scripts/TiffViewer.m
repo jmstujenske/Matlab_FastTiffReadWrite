@@ -3,16 +3,17 @@ classdef TiffViewer < handle
     
     properties
         filename
-        memmap
         figure
         n_ch
         numFrames
         memmap_data
-        ax
-        timer
         fps
     end
-    
+    properties(Hidden = true)
+        ax
+        memmap
+        listener
+    end
     methods
         function obj = TiffViewer(filename)
             obj.memmap = memory_map_tiff(filename,[],[],true);
@@ -59,7 +60,7 @@ data.h.edit = uicontrol('style','edit','units','normalized','position',[.57 .9 .
 data.h.play = uicontrol('style','pushbutton','units','normalized','position',[0 .9 .05 .05],'String','>','callback',{@(hObject,event) play_but_down(hObject,event,tv)});
 data.h.setfps = uicontrol('style','pushbutton','units','normalized','position',[.65 .9 .1 .05],'String','Set FPS','callback',{@(hObject,event) fps_but_down(hObject,event,tv)});
 guidata(tv.figure,data);
-addlistener(data.h.slide,'ContinuousValueChange',@(hObject, event) makeplot(hObject, event,tv));
+tv.listener=addlistener(data.h.slide,'ContinuousValueChange',@(hObject, event) makeplot(hObject, event,tv));
 end
 
 function makeplot(hObject,event,tv)
@@ -126,6 +127,9 @@ set(hObject,'String','>');
 guidata(tv.figure,data);
 end
 function closefcn(obj,event,tv)
+data=guidata(tv.figure);
+delete(tv.listener)
+stop(data.timer);
 delete(obj);
 delete(tv);
 end
