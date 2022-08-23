@@ -1,4 +1,4 @@
-function [m,n_ch]=memory_map_tiff(filename,opt,n_ch)
+function [m,n_ch]=memory_map_tiff(filename,opt,n_ch,read_only)
 %m=memory_map_tiff(filename,opt)
 %Memory map output of FastTiffSave
 %
@@ -8,11 +8,17 @@ function [m,n_ch]=memory_map_tiff(filename,opt,n_ch)
 %channels splits up each frame per channel
 %matrix concatenates the two channels into a large matrix
 %
+%n_ch - number of channels (default: found in imagedescription, else 1)
+%read_only - default: false;
+%
 %Output:
 %m - memory map
 
 if nargin<2 || isempty(opt)
     opt='channels';
+end
+if nargin<4 || isempty(read_only)
+    read_only=false;
 end
 info=readtifftags(filename);
   if isfield(info,'StripOffsets')
@@ -65,4 +71,4 @@ bd=info(1).BitsPerSample;
 
 rep=1;
     end
-        m = memmapfile(filename, 'Offset', offset, 'Format',format_string,'Writable',true,'Repeat',rep);
+        m = memmapfile(filename, 'Offset', offset, 'Format',format_string,'Writable',~read_only,'Repeat',rep);
