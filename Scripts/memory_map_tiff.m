@@ -57,16 +57,33 @@ bd=info(1).BitsPerSample;
         n_ch=[];
     end
     end
-    if isempty(n_ch);n_ch=1;end
+    if isempty(n_ch) || isnan(n_ch);n_ch=1;end
     
     switch opt
         case 'channels'
-    format_string=cell(n_ch,3);
+        if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages>0
+            format_string=cell(n_ch*2,3);
+            gap=info.GapBetweenImages;
+        else
+            format_string=cell(n_ch,3);
+            gap=0;
+        end
+    count=0;
     for ch_rep=1:n_ch
-        format_string(ch_rep,:)={form,[info(1).(size_fields{1}) info(1).(size_fields{2})],['channel',num2str(ch_rep)]};
-        rep=length(info)/n_ch;
+        count=count+1;
+        format_string(count,:)={form,[info(1).(size_fields{1}) info(1).(size_fields{2})],['channel',num2str(ch_rep)]};
+        if gap>0
+            count=count+1;
+            format_string(count,:)={'uint8',gap,['gap',num2str(ch_rep)]};
+        end
     end
+        rep=length(info)/n_ch;
         case 'matrix'
+            if isfield(info,'GapBetweenImages')
+                if info(1).GapBetweenImages>0
+                    error('Cannot matrix map with this file format. The data is not a continguous block.');
+                end
+            end
       format_string={form,[info(1).(size_fields{1}) info(1).(size_fields{2})*n_ch length(info)/n_ch],'allchans'};
 
 rep=1;

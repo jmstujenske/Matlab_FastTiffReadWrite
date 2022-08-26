@@ -8,6 +8,7 @@ classdef TiffViewer < handle
         numFrames
         memmap_data
         fps
+        map_type
     end
     properties(Hidden = true)
         ax
@@ -15,13 +16,44 @@ classdef TiffViewer < handle
         listener
     end
     methods
-        function obj = TiffViewer(filename)
-            obj.memmap = memory_map_tiff(filename,[],[],true);
+        function obj = TiffViewer(filename,n_ch)
+            if nargin<2
+                n_ch=[];
+            end
+            info = readtifftags(filename);
+            offset_field=get_offset_field(info);
+            
+            if length(info)>3
+                if info(2).(offset_field)(1)-info(1).(offset_field)(1)==info(3).(offset_field)(1)-info(2).(offset_field)(1)
+                    uneven_flag=0;
+                else
+                    uneven_flag=1;
+                end
+            else
+                uneven_flag=1;
+                warning('File cannot be memory mapped. Will read frames from file, which will be slow.');
+            end
+            if ~uneven_flag
+                obj.map_type='mem';
+            obj.memmap = memory_map_tiff(filename,[],n_ch,true);
             obj.memmap_data=obj.memmap.Data;
+            else
+                obj.map_type='file';
+                obj.memmap = set_up_file(filename,info,n_ch);
+                obj.memmap_data = 1;
+            end
             scaleval=.6;
             obj.figure=figure('Units','normalized','Position',[.1 .1 scaleval scaleval],'AutoResizeChildren','off','CloseRequestFcn',@(x,event) closefcn(x,event,obj));
-            obj.n_ch=length(fieldnames(obj.memmap_data));
-            info = readtifftags(filename);
+            switch obj.map_type
+                case 'mem'
+                    if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
+                    obj.n_ch=length(fieldnames(obj.memmap_data));
+                    else
+                        obj.n_ch=length(fieldnames(obj.memmap_data))/2;
+                    end
+                case 'file'
+                    obj.n_ch=map.n_ch;
+            end
             obj.numFrames=length(info)/obj.n_ch;
             for rep=1:obj.n_ch
             obj.ax{rep}=uiaxes('Units','normalized','Parent',obj.figure,'Position',[0+(rep-1)*.5 0 .5 .89],'XTick',[],'YTick',[]);
@@ -40,13 +72,23 @@ classdef TiffViewer < handle
         function disp_frame(obj,frame)
             data=guidata(obj.figure);
             if data.CurrFrame>obj.numFrames
-                error('Current Frame above number of frames.');
+                data.CurrFrame=obj.numFrames;
+%                 error('Current Frame above number of frames.');
             end
             if nargin<2 || isempty(frame)
-                frame=data.CurrFrame;
+                frame=min(max(data.CurrFrame,1),obj.numFrames);
             end
             for a=1:obj.n_ch
-            imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
+            switch obj.map_type
+                case 'mem'
+                    imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
+                case 'file'
+                    obj.memmap_data=(obj.CurrFrame-1)*n_ch+a;
+                    fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
+                    data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
+                    data=reshape(data,obj.memmap.frame_size)';
+                    imagesc(data);
+            end
             end
             guidata(obj.figure,data);
         end
@@ -132,4 +174,55 @@ delete(tv.listener)
 stop(data.timer);
 delete(obj);
 delete(tv);
+end
+function map=set_up_file(filename,info,n_ch);
+offset_field=get_offset_field(info);
+map.idx=zeros(length(info),1);
+for rep=1:length(map.idx)
+map.idx(rep)=info(rep).(offset_field)(1);
+end
+    if isfield(info,'Width')
+        size_fields={'Width','Height'};
+    elseif isfield(info,'ImageWidth')
+        size_fields={'ImageWidth','ImageHeight'};
+    else
+        error('Size Tags not recognized.')
+    end
+    if nargin<3 || isempty(n_ch)
+        if isfield(info,'ImageDescription')
+        map.n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
+        else
+            map.n_ch=1;
+        end
+    else
+        map.n_ch=n_ch;
+    end
+bd=info(1).BitsPerSample;
+    if (bd==64)
+        map.form='double';
+        %         bps=8;
+    elseif(bd==32)
+        map.form='single';
+        %         bps=4;
+    elseif (bd==16)
+        map.form='uint16';
+        %         bps=2;
+    elseif (bd==8)
+        map.form='uint8';
+        %         bps=1;
+    end
+    map.frame_size=[info(1).(size_fields{1}) info(1).(size_fields{2})];
+    map.data_size=prod(map.frame_size);
+    map.byte_size=map.data_size*bd/8;
+    map.fid=fopen(filename,'r');
+    fseek(map.fid,map.idx(1),'bof');
+end
+function offset_field=get_offset_field(info)
+if isfield(info,'StripOffsets')
+    offset_field='StripOffsets';
+elseif isfield(info,'TileOffsets')
+    offset_field='TileOffsets';
+else
+    error('Neither strip nor tile format.')
+end
 end
