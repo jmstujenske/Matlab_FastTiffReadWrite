@@ -69,7 +69,7 @@ if nargin<3 || isempty(frame_start)
 end
 nFrames=frame_end-frame_start+1;
 predicted_filesize=(im_size(1)*im_size(2)*bps+15*12)*nFrames+8;
-if predicted_filesize<3.9e9 %make sure less than 3.9GB, to be conservative
+if predicted_filesize<3.99e9 %make sure less than 3.99GB, to be conservative
     disp('Saving as Regular Tiff.')
     TiffWriter=Fast_Tiff_Write(filename,[],[],imagedesc);
 else

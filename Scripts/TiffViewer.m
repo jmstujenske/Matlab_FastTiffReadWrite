@@ -1,6 +1,6 @@
 classdef TiffViewer < handle
     %Class to view tiffs using memory mamping
-    
+
     properties
         filename
         figure
@@ -22,7 +22,7 @@ classdef TiffViewer < handle
             end
             info = readtifftags(filename);
             offset_field=get_offset_field(info);
-            
+
             if length(info)>3
                 if info(2).(offset_field)(1)-info(1).(offset_field)(1)==info(3).(offset_field)(1)-info(2).(offset_field)(1)
                     uneven_flag=0;
@@ -35,8 +35,8 @@ classdef TiffViewer < handle
             end
             if ~uneven_flag
                 obj.map_type='mem';
-            obj.memmap = memory_map_tiff(filename,[],n_ch,true);
-            obj.memmap_data=obj.memmap.Data;
+                obj.memmap = memory_map_tiff(filename,[],n_ch,true);
+                obj.memmap_data=obj.memmap.Data;
             else
                 obj.map_type='file';
                 obj.memmap = set_up_file(filename,info,n_ch);
@@ -47,7 +47,7 @@ classdef TiffViewer < handle
             switch obj.map_type
                 case 'mem'
                     if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
-                    obj.n_ch=length(fieldnames(obj.memmap_data));
+                        obj.n_ch=length(fieldnames(obj.memmap_data));
                     else
                         obj.n_ch=length(fieldnames(obj.memmap_data))/2;
                     end
@@ -56,8 +56,8 @@ classdef TiffViewer < handle
             end
             obj.numFrames=length(info)/obj.n_ch;
             for rep=1:obj.n_ch
-            obj.ax{rep}=uiaxes('Units','normalized','Parent',obj.figure,'Position',[0+(rep-1)*.5 0 .5 .89],'XTick',[],'YTick',[]);
-            set(obj.ax{rep},'XLim',[1 info(1).ImageWidth],'YLim',[1 info(1).ImageHeight]);
+                obj.ax{rep}=uiaxes('Units','normalized','Parent',obj.figure,'Position',[0+(rep-1)*.5 0 .5 .89],'XTick',[],'YTick',[]);
+                set(obj.ax{rep},'XLim',[1 info(1).ImageWidth],'YLim',[1 info(1).ImageHeight]);
 
             end
             myslider(obj);
@@ -67,28 +67,44 @@ classdef TiffViewer < handle
             data.timer=timer('ExecutionMode','fixedRate','TimerFcn',{@play_vid,obj},'Period',max(round(1/obj.fps,3),.001));
             guidata(obj.figure,data);
             disp_frame(obj)
+            maxval=0;
+                        switch obj.map_type
+                case 'mem'
+                    for a=1:obj.n_ch
+                    maxval=max(maxval,max(obj.memmap_data(data.CurrFrame).(['channel',num2str(a)]),[],'all'));
+                    end
+                            case 'file'
+                                for a=1:obj.n_ch
+                                obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
+                                fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
+                                data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
+                                data=reshape(data,obj.memmap.frame_size)';
+                                maxval=max(maxval,max(data,[],'all'));
+                                end
+                        end
+                        set(obj.ax{a},'CLim',[0 maxval]);
         end
-        
+
         function disp_frame(obj,frame)
             data=guidata(obj.figure);
             if data.CurrFrame>obj.numFrames
                 data.CurrFrame=obj.numFrames;
-%                 error('Current Frame above number of frames.');
+                %                 error('Current Frame above number of frames.');
             end
             if nargin<2 || isempty(frame)
                 frame=min(max(data.CurrFrame,1),obj.numFrames);
             end
             for a=1:obj.n_ch
-            switch obj.map_type
-                case 'mem'
-                    imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
-                case 'file'
-                    obj.memmap_data=(obj.CurrFrame-1)*n_ch+a;
-                    fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
-                    data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
-                    data=reshape(data,obj.memmap.frame_size)';
-                    imagesc(data);
-            end
+                switch obj.map_type
+                    case 'mem'
+                        imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
+                    case 'file'
+                        obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
+                        fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
+                        data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
+                        data=reshape(data,obj.memmap.frame_size)';
+                        imagesc(data);
+                end
             end
             guidata(obj.figure,data);
         end
@@ -101,6 +117,9 @@ data.h.slide = uicontrol('style','slider','units','normalized','position',[0.05 
 data.h.edit = uicontrol('style','edit','units','normalized','position',[.57 .9 .05 .05],'Parent',tv.figure,'Max',1,'Min',1,'String',num2str(1),'callback',{@(hObject, event) makeplot2(hObject, event,tv)});
 data.h.play = uicontrol('style','pushbutton','units','normalized','position',[0 .9 .05 .05],'String','>','callback',{@(hObject,event) play_but_down(hObject,event,tv)});
 data.h.setfps = uicontrol('style','pushbutton','units','normalized','position',[.65 .9 .1 .05],'String','Set FPS','callback',{@(hObject,event) fps_but_down(hObject,event,tv)});
+data.h.maxp = uicontrol('style','pushbutton','units','normalized','position',[.8 .9 .1 .05],'String','Max P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'max')});
+data.h.meanp = uicontrol('style','pushbutton','units','normalized','position',[.9 .9 .1 .05],'String','Mean P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'mean')});
+
 guidata(tv.figure,data);
 tv.listener=addlistener(data.h.slide,'ContinuousValueChange',@(hObject, event) makeplot(hObject, event,tv));
 end
@@ -117,8 +136,8 @@ function makeplot2(hObject,event,tv)
 data=guidata(tv.figure);
 curval=get(hObject,'String');
 try
-data.CurrFrame=max(min(round(str2double(get(hObject,'String'))),tv.numFrames),1);
-hObject.String=num2str(data.CurrFrame);
+    data.CurrFrame=max(min(round(str2double(get(hObject,'String'))),tv.numFrames),1);
+    hObject.String=num2str(data.CurrFrame);
 catch
     hObject.String=curval;
     return;
@@ -132,22 +151,76 @@ function fps_but_down(hObject,event,tv)
 answer=inputdlg('Input FPS for Video Playback');
 tv.fps=str2double(answer{1});
 end
+function mm_proj(hObject,event,tv,type)
+figure;
+max_time=20;
+
+switch tv.map_type
+    case 'mem'
+        for a=1:tv.n_ch
+            tic;
+            subplot(1,tv.n_ch,a)
+
+            switch type
+                case 'mean'
+                    P=(double(tv.memmap_data(1).(['channel',num2str(a)])))/tv.numFrames;
+                    for b=2:length(tv.memmap_data);
+                        P=P+double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames;
+                        if mod(b,1000)==0
+                            imagesc(P');axis off;drawnow;
+                        end
+                        if toc>max_time/2
+                            disp(['Max time reached for channel ',num2str(a),'.']);
+                            break;
+                        end
+                    end
+                    imagesc(P');axis off;
+
+                case 'max'
+                    P=tv.memmap_data(1).(['channel',num2str(a)]);
+                    subsamp=5;
+                    [n m]=size(P,1:2);
+                    P=zeros(size(P));
+                    temp_frames=zeros(n,m,subsamp,class(P));
+                    for b=1:subsamp:length(tv.memmap_data)-subsamp+1;
+                        for c=1:subsamp
+                            temp_frames(:,:,c)=tv.memmap_data(b+(c-1)).(['channel',num2str(a)]);
+                        end
+                        P=max(P,median(temp_frames,3));
+                        if mod(b,1000)<subsamp
+                            imagesc(P');axis off;drawnow;
+                        end
+                        if toc>max_time/2
+                            disp(['Max time reached for channel ',num2str(a),'.']);
+
+                            break;
+                        end
+                    end
+                    imagesc(P');axis off;
+
+            end
+        end
+    case 'file'
+        warning('Could not memory map, so projection would take too long.');
+end
+disp('Projection Done.');
+end
 
 function play_but_down(hObject,event,tv)
 data=guidata(tv.figure);
 if data.CurrFrame~=tv.numFrames
-set(data.timer,'Period',max(round(1/tv.fps,3),.001),'TimerFcn',{@play_vid,tv});
-start(data.timer);
-guidata(tv.figure,data);
-set(hObject,'callback',@(x,evt) stop_but_down(x,evt,tv));
-set(hObject,'String','=');
+    set(data.timer,'Period',max(round(1/tv.fps,3),.001),'TimerFcn',{@play_vid,tv});
+    start(data.timer);
+    guidata(tv.figure,data);
+    set(hObject,'callback',@(x,evt) stop_but_down(x,evt,tv));
+    set(hObject,'String','=');
 end
 end
 
 function play_vid(hObject,event,tv)
 data=guidata(tv.figure);
 if data.CurrFrame~=tv.numFrames
-data.CurrFrame=data.CurrFrame+1;
+    data.CurrFrame=data.CurrFrame+1;
 else
     stop(hObject);
     return;
@@ -179,43 +252,43 @@ function map=set_up_file(filename,info,n_ch);
 offset_field=get_offset_field(info);
 map.idx=zeros(length(info),1);
 for rep=1:length(map.idx)
-map.idx(rep)=info(rep).(offset_field)(1);
+    map.idx(rep)=info(rep).(offset_field)(1);
 end
-    if isfield(info,'Width')
-        size_fields={'Width','Height'};
-    elseif isfield(info,'ImageWidth')
-        size_fields={'ImageWidth','ImageHeight'};
-    else
-        error('Size Tags not recognized.')
-    end
-    if nargin<3 || isempty(n_ch)
-        if isfield(info,'ImageDescription')
+if isfield(info,'Width')
+    size_fields={'Width','Height'};
+elseif isfield(info,'ImageWidth')
+    size_fields={'ImageWidth','ImageHeight'};
+else
+    error('Size Tags not recognized.')
+end
+if nargin<3 || isempty(n_ch)
+    if isfield(info,'ImageDescription')
         map.n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
-        else
-            map.n_ch=1;
-        end
     else
-        map.n_ch=n_ch;
+        map.n_ch=1;
     end
+else
+    map.n_ch=n_ch;
+end
 bd=info(1).BitsPerSample;
-    if (bd==64)
-        map.form='double';
-        %         bps=8;
-    elseif(bd==32)
-        map.form='single';
-        %         bps=4;
-    elseif (bd==16)
-        map.form='uint16';
-        %         bps=2;
-    elseif (bd==8)
-        map.form='uint8';
-        %         bps=1;
-    end
-    map.frame_size=[info(1).(size_fields{1}) info(1).(size_fields{2})];
-    map.data_size=prod(map.frame_size);
-    map.byte_size=map.data_size*bd/8;
-    map.fid=fopen(filename,'r');
-    fseek(map.fid,map.idx(1),'bof');
+if (bd==64)
+    map.form='double';
+    %         bps=8;
+elseif(bd==32)
+    map.form='single';
+    %         bps=4;
+elseif (bd==16)
+    map.form='uint16';
+    %         bps=2;
+elseif (bd==8)
+    map.form='uint8';
+    %         bps=1;
+end
+map.frame_size=[info(1).(size_fields{1}) info(1).(size_fields{2})];
+map.data_size=prod(map.frame_size);
+map.byte_size=map.data_size*bd/8;
+map.fid=fopen(filename,'r');
+fseek(map.fid,map.idx(1),'bof');
 end
 function offset_field=get_offset_field(info)
 if isfield(info,'StripOffsets')

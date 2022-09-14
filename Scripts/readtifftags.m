@@ -179,6 +179,13 @@ if NextIFD~=0 && lasttag~=1
     end
     
     if ~done_flag
+        if isfield(info,'TileOffsets')
+            offset_field='TileOffsets';
+        elseif isfield(info,'StripOffsets')
+            offset_field='StripOffsets';
+        else
+            error('Unrecognized offset format.');
+        end
         fid_spacer=fp_off-ftell(fp);
         db=diff(buff_foff);
         try
@@ -189,7 +196,6 @@ if NextIFD~=0 && lasttag~=1
         end
         %%%check for logical arrangement of files: fid first, first interleaved, or
         %%%fid end.
-        
         if all(db==db(1))
             if db(1)>=data_size-1 %interleaved
                 
@@ -206,7 +212,7 @@ if NextIFD~=0 && lasttag~=1
                     [info2]=readIFD_43(fp,NextIFD,TagId,TagName);
                 end
                 try
-                    info(1).GapBetweenImages=max(0,info2.StripOffsets(1)-info(1).StripOffsets(1)-sum(info(1).StripByteCounts));
+                    info(1).GapBetweenImages=max(0,info2.(offset_field)(1)-info(1).(offset_field)(1)-sum(info(1).StripByteCounts));
                 end
                 fseek(fp,current_pos,'bof');
             end
@@ -225,12 +231,12 @@ if NextIFD~=0 && lasttag~=1
                     fseek(fp,fid_spacer,'cof');
                 end
             end
-            mattoassign=info(1).StripOffsets(:)';
-            len_offs=length(info(1).StripOffsets);
+            mattoassign=info(1).(offset_field)(:)';
+            len_offs=length(info(1).(offset_field));
             n_tifs=min(lasttag,n_tifs);
             info=repmat(info(1),n_tifs,1);
             temp=mat2cell(repmat(mattoassign,n_tifs,1)+cumsum([0;repmat(double(sizeofeachentry+fid_spacer),n_tifs-1,1)]),ones(1,n_tifs),len_offs);
-            [info(1:n_tifs).StripOffsets]=temp{:};
+            [info(1:n_tifs).(offset_field)]=temp{:};
         else
             disp('Reading Tiff Info with unevenly spaced FIDs. This may take a while.')
             %%FIDS are uneven.
@@ -239,58 +245,40 @@ if NextIFD~=0 && lasttag~=1
             %     error('FIDs are not equally spaced.')
             preassign=min(200000,lasttag); %%largest number of frames you expect
             info(n_tifs+1:preassign)=info(1);
-            if version==42
-                while 1
-                    n_tifs=n_tifs+1;
-                    [info(n_tifs),fp_off]=readIFD_42(fp,fp_off,TagId,TagName,info(1)); %%read this way just in case it is a short tiff and uneven FIDs, even though slightly slower
-                    if fp_off==0 || n_tifs>1e5 || n_tifs==lasttag
-                        done_flag=1;
-                        info(n_tifs+1:end)=[];%%delete the unnecessary pre-allocated info
-                        if isfield(info,'TileOffsets')
-                            if isempty(info(end).TileOffsets)
-                                
-                                info(end)=[];
-                                n_tifs=n_tifs-1;
-                            end
-                        elseif isfield(info,'StripOffsets')
-                            if isempty(info(end).StripOffsets)
-                                info(end)=[];
-                                n_tifs=n_tifs-1;
-                            end
-                        end
-                        break
-                    else
-                        buff_foff(n_tifs+1)=fp_off;
-                        % fseek(fp,fp_off-ftell(fp),'cof');
-                    end
-                end
-            else
-                while 1
-                    n_tifs=n_tifs+1;
-                    [info(n_tifs),fp_off]=readIFD_43(fp,fp_off,TagId,TagName,info(1)); %%read this way just in case it is a short tiff and uneven FIDs, even though slightly slower
-                    if fp_off==0 || n_tifs>1e5 || n_tifs==lasttag
-                        done_flag=1;
-                        info(n_tifs+1:end)=[];%%delete the unnecessary pre-allocated info
-                        if isfield(info,'TileOffsets')
-                            if isempty(info(end).TileOffsets)
-                                
-                                info(end)=[];
-                                n_tifs=n_tifs-1;
-                            end
-                        elseif isfield(info,'StripOffsets')
-                            if isempty(info(end).StripOffsets)
-                                info(end)=[];
-                                n_tifs=n_tifs-1;
-                            end
-                        end
-                        break
-                    else
-                        buff_foff(n_tifs+1)=fp_off;
-                        % fseek(fp,fp_off-ftell(fp),'cof');
-                    end
-                end
-            end
             
+                while 1
+                    n_tifs=n_tifs+1;
+                    if version==42
+                    [info(n_tifs),fp_off]=readIFD_42(fp,fp_off,TagId,TagName,info(1)); %%read this way just in case it is a short tiff and uneven FIDs, even though slightly slower
+                    else
+                    [info(n_tifs),fp_off]=readIFD_43(fp,fp_off,TagId,TagName,info(1));
+                    end
+                    if fp_off==0 || n_tifs>1e5 || n_tifs==lasttag
+                        done_flag=1;
+                        info(n_tifs+1:end)=[];%%delete the unnecessary pre-allocated info
+                        if isempty(info(end).(offset_field))
+                                info(end)=[];
+                                n_tifs=n_tifs-1;
+                        end
+                        break
+                    else
+                        buff_foff(n_tifs+1)=fp_off;
+                        % fseek(fp,fp_off-ftell(fp),'cof');
+                    end
+                end
+                if length(info)>=3
+                    check_even_images=[];
+                    for im_rep=1:min(5,length(info))
+                        check_even_images=[check_even_images info(im_rep).(offset_field)(1)];
+                    end
+                    db=diff(check_even_images);
+                    if all(db(1)==db)
+                        gap=db(1)-sum(info(1).StripByteCounts);
+                        for rep=1:length(info)
+                        info(rep).GapBetweenImages=gap;
+                        end
+                    end
+                end
         end
         
         
