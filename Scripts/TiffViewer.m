@@ -1,5 +1,9 @@
 classdef TiffViewer < handle
     %Class to view tiffs using memory mamping
+    %Sample usage:
+    %tv=TiffViewer('test.tif');
+    %
+    %GUI fill popup and has intuitive controls.
 
     properties
         filename
