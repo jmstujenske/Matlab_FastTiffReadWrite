@@ -4,7 +4,21 @@ classdef TiffViewer < handle
     %tv=TiffViewer('test.tif');
     %
     %GUI fill popup and has intuitive controls.
-
+    %
+    %Controls:
+    %
+    %Play / Pause button - plays videos starting at current frame
+    %scroll - scroll through video frames
+    %Current Frame input - type in frame that you want to navigate to
+    %Set FPS - set video speed in frames per second
+    %ROI ts - prompts to draw an ROI and then plots the t-series. Can take
+    %a while for large ROI
+    %Max P - Maximum projection with a little noise removal first
+    %Mean P - Mean projection
+    %
+    %Projections are currently capped at taking 30 seconds max to avoid
+    %stalling Matlab.
+    %
     properties
         filename
         figure
@@ -123,6 +137,7 @@ data.h.play = uicontrol('style','pushbutton','units','normalized','position',[0 
 data.h.setfps = uicontrol('style','pushbutton','units','normalized','position',[.65 .9 .1 .05],'String','Set FPS','callback',{@(hObject,event) fps_but_down(hObject,event,tv)});
 data.h.maxp = uicontrol('style','pushbutton','units','normalized','position',[.8 .9 .1 .05],'String','Max P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'max')});
 data.h.meanp = uicontrol('style','pushbutton','units','normalized','position',[.9 .9 .1 .05],'String','Mean P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'mean')});
+data.h.ROI = uicontrol('style','pushbutton','units','normalized','position',[.75 .9 .05 .05],'String','ROI ts','callback',{@(hObject,event) ROI_select(hObject,event,tv)});
 
 guidata(tv.figure,data);
 tv.listener=addlistener(data.h.slide,'ContinuousValueChange',@(hObject, event) makeplot(hObject, event,tv));
@@ -134,6 +149,41 @@ data.CurrFrame=round(get(hObject,'Value'));
 set(data.h.edit,'String',num2str(data.CurrFrame));
 guidata(tv.figure,data);
 disp_frame(tv);
+end
+function ROI_select(hOject,event,tv)
+data=guidata(tv.figure);
+    ax=gca;
+if ~isfield(data,'ROI_precalc')
+data.ROI_precalc.frame_size=size(ax.Children.CData);
+[data.ROI_precalc.x,data.ROI_precalc.y]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
+end
+data.ROI=drawpolygon(ax);
+set(tv.figure, 'pointer', 'watch');
+drawnow;
+pixels=inpolygon(data.ROI_precalc.x,data.ROI_precalc.y,data.ROI.Position(:,1),data.ROI.Position(:,2));
+pixel_mask=zeros(data.ROI_precalc.frame_size);
+pixel_mask(pixels)=1;
+pixel_mask=logical(pixel_mask);
+z_series=zeros(tv.n_ch,tv.numFrames);
+    for b=1:tv.n_ch
+        for t=1:tv.numFrames
+    z_series(b,t)=nanmean(tv.memmap_data(t).(['channel',num2str(b)])(pixel_mask));
+        end
+    end
+figure;
+colors={'r','g'};
+    for b=1:tv.n_ch
+plot(z_series(b,:),'-','Color',colors{b},'LineWidth',.5);
+hold on;
+plot(movmean(z_series(b,:),5),'k-','LineWidth',2);
+hold on;
+    end
+    xlim([1 tv.numFrames]);
+    box off;set(gca,'TickDir','out');
+    
+    delete(data.ROI);
+    set(tv.figure, 'pointer', 'arrow');
+
 end
 
 function makeplot2(hObject,event,tv)
@@ -158,7 +208,8 @@ end
 function mm_proj(hObject,event,tv,type)
 figure;
 max_time=20;
-
+    set(tv.figure, 'pointer', 'watch');
+drawnow;
 switch tv.map_type
     case 'mem'
         for a=1:tv.n_ch
@@ -208,6 +259,8 @@ switch tv.map_type
         warning('Could not memory map, so projection would take too long.');
 end
 disp('Projection Done.');
+set(tv.figure, 'pointer', 'arrow');
+
 end
 
 function play_but_down(hObject,event,tv)
