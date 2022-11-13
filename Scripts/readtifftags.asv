@@ -251,27 +251,48 @@ if NextIFD~=0 && lasttag~=1
             %     error('FIDs are not equally spaced.')
             preassign=min(200000,lasttag); %%largest number of frames you expect
             info(n_tifs+1:preassign)=info(1);
-            fp_off=fp_off_new;
-                while 1
-                    n_tifs=n_tifs+1;
-                    if version==42
-                    [info(n_tifs),fp_off]=readIFD_42(fp,fp_off,TagId,TagName,info(1)); %%read this way just in case it is a short tiff and uneven FIDs, even though slightly slower
-                    else
-                    [info(n_tifs),fp_off]=readIFD_43(fp,fp_off,TagId,TagName,info(1));
-                    end
-                    if fp_off==0 || n_tifs>1e5 || n_tifs==lasttag
-                        done_flag=1;
-                        info(n_tifs+1:end)=[];%%delete the unnecessary pre-allocated info
-                        if isempty(info(n_tifs).(offset_field))
-                                info(end)=[];
-                                n_tifs=n_tifs-1;
-                        end
-                        break
-                    else
-                        buff_foff(n_tifs+1)=fp_off;
-                        fseek(fp,fp_off,'bof');
-                    end
+            fseek(fp,fp_off_new,'bof');
+
+%                 while 1
+%                     n_tifs=n_tifs+1;
+%                     if version==42
+%                     [info(n_tifs),fp_off]=readIFD_42(fp,fp_off,TagId,TagName,info(1)); %%read this way just in case it is a short tiff and uneven FIDs, even though slightly slower
+%                     else
+%                     [info(n_tifs),fp_off]=readIFD_43(fp,fp_off,TagId,TagName,info(1));
+%                     end
+%                     if fp_off==0 || n_tifs>1e5 || n_tifs==lasttag
+%                         done_flag=1;
+%                         info(n_tifs+1:end)=[];%%delete the unnecessary pre-allocated info
+%                         if isempty(info(end).(offset_field))
+%                                 info(end)=[];
+%                                 n_tifs=n_tifs-1;
+%                         end
+%                         break
+%                     else
+%                         buff_foff(n_tifs+1)=fp_off;
+%                         fseek(fp,fp_off,'bof');
+%                     end
+%                 end
+                info(n_tifs+1).(offset_field)=fp_off_new;
+            while 1
+                n_tifs=n_tifs+1;
+                fseek(fp,sizeofeachentry,'cof');
+                fp_off=fread(fp,1,form);
+                if isempty(fp_off)
+                    warning('Tif tags are incomplete.');
+				break;
                 end
+                if  fp_off==0 || n_tifs==lasttag || fp_off<ftell(fp)
+                    done_flag=1;
+                    info(n_tifs+1:end)=[];%%delete the unnecessary pre-allocated info
+                    break
+                else
+                    fseek(fp,fp_off,'bof');
+                    buff_foff(n_tifs+1)=fp_off;
+                    info(n_tifs+1).(offset_field)=fp_off+info(1).(offset_field)-info(1).(offset_field)(1);
+
+                end
+            end
                 if length(info)>=3
                     check_even_images=[];
                     for im_rep=1:min(5,length(info))

@@ -65,6 +65,7 @@ if nargin<2 || isempty(sframe)
     sframe = 1;
     num2read=inf;
 end
+
 if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
 
     %get image info
@@ -144,7 +145,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         return;
     end
     if (num2read+sframe<= numFrames+1)
-        lastframe=num2read+sframe-1;
+        lastframe=num2read+sframe-1;off_type
     else
         num2read=numFrames-sframe+1;%currently this definition is not necessary, but want to forestall potential future issues by defining this correctly
         lastframe=numFrames;
@@ -391,11 +392,6 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 % imData=permute(imData,[2 1 3]);
                 %     end
                 %         he_step=[he_w he_h];
-                try
-                    m=memory_map_tiff(path_to_file,'matrix',1,[],numFrames);
-                    imData=m.Data.allchans(:,:,sframe:min(end,sframe+num2read-1));
-                    return;
-                end
                 if strcmpi(form,'uint16') || strcmpi(form,'uint8') || strcmpi(form,'single')
                     form=['*',form];
                     %             for cnt = sframe:lastframe

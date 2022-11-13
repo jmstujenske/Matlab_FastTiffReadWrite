@@ -1,4 +1,4 @@
-function [m,n_ch]=memory_map_tiff(filename,opt,n_ch,read_only)
+function [m,n_ch,info]=memory_map_tiff(filename,opt,n_ch,read_only,numFrames)
 %m=memory_map_tiff(filename,opt)
 %Memory map output of FastTiffSave
 %
@@ -20,7 +20,14 @@ end
 if nargin<4 || isempty(read_only)
     read_only=false;
 end
-info=readtifftags(filename);
+
+
+if nargin<5 || isempty(numFrames)
+    info=readtifftags(filename);
+    numFrames=length(info);
+else
+    info=readtifftags(filename,1);
+end
   if isfield(info,'StripOffsets')
         offset_field='StripOffsets';
     elseif isfield(info,'TileOffsets')
@@ -77,15 +84,15 @@ bd=info(1).BitsPerSample;
             format_string(count,:)={'uint8',gap,['gap',num2str(ch_rep)]};
         end
     end
-        rep=length(info)/n_ch;
+        rep=numFrames/n_ch;
         case 'matrix'
             if isfield(info,'GapBetweenImages')
                 if info(1).GapBetweenImages>0
                     error('Cannot matrix map with this file format. The data is not a continguous block.');
                 end
             end
-      format_string={form,[info(1).(size_fields{1}) info(1).(size_fields{2})*n_ch length(info)/n_ch],'allchans'};
+      format_string={form,[info(1).(size_fields{1}) info(1).(size_fields{2})*n_ch numFrames/n_ch],'allchans'};
 
-rep=1;
+        rep=1;
     end
         m = memmapfile(filename, 'Offset', offset, 'Format',format_string,'Writable',~read_only,'Repeat',rep);
