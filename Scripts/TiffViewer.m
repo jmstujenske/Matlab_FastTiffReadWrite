@@ -38,6 +38,8 @@ classdef TiffViewer < handle
             if nargin<2
                 n_ch=[];
             end
+            [folder,file,ext]=fileparts(filename);
+            if strcmp(ext,'.tif') || strcmp(ext,'.tiff')
             info = readtifftags(filename);
             offset_field=get_offset_field(info);
 
@@ -51,9 +53,35 @@ classdef TiffViewer < handle
                 uneven_flag=1;
                 warning('File cannot be memory mapped. Will read frames from file, which will be slow.');
             end
+            else
+                uneven_flag=0;
+            end
             if ~uneven_flag
                 obj.map_type='mem';
+                
+                switch ext
+                    case {'.tif','.tiff'}
                 obj.memmap = memory_map_tiff(filename,[],n_ch,true);
+                            width=info(1).ImageWidth;
+            height=info(1).ImageHeight;
+                    case '.bin'
+                        userinputs=inputdlg({'Specify frame size as a matrix:','Number of channels:','data format:'});
+                        framesize=eval(userinputs{1});
+                        n_ch=str2double(userinputs{2});
+                        form=userinputs{3};
+
+                        
+                        count=0;
+                        for ch_rep=1:n_ch
+                            count=count+1;
+                            format_string(count,:)={form,framesize,['channel',num2str(ch_rep)]};
+                        end
+                        obj.memmap = memmapfile(filename, 'Format',format_string,'Writable',false);
+                                    width=framesize(2);
+                        height=framesize(1);
+                    otherwise
+                        error('File extension not recognized');
+                end
                 obj.memmap_data=obj.memmap.Data;
             else
                 obj.map_type='file';
@@ -64,19 +92,23 @@ classdef TiffViewer < handle
             obj.figure=figure('Units','normalized','Position',[.1 .1 scaleval scaleval],'AutoResizeChildren','off','CloseRequestFcn',@(x,event) closefcn(x,event,obj));
             switch obj.map_type
                 case 'mem'
+                    if exist('info','var')
                     if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
                         obj.n_ch=length(fieldnames(obj.memmap_data));
                     else
                         obj.n_ch=length(fieldnames(obj.memmap_data))/2;
                     end
+                    else
+                        obj.n_ch=n_ch;
+                    end
                 case 'file'
                     obj.n_ch=map.n_ch;
             end
-            obj.numFrames=length(info)/obj.n_ch;
+            obj.numFrames=length(obj.memmap_data);
+
             for rep=1:obj.n_ch
                 obj.ax{rep}=uiaxes('Units','normalized','Parent',obj.figure,'Position',[0+(rep-1)*.5 0 .5 .89],'XTick',[],'YTick',[]);
-                set(obj.ax{rep},'XLim',[1 info(1).ImageWidth],'YLim',[1 info(1).ImageHeight]);
-
+                set(obj.ax{rep},'XLim',[1 width],'YLim',[1 height]);
             end
             myslider(obj);
             data=guidata(obj.figure);
@@ -154,7 +186,7 @@ function ROI_select(hOject,event,tv)
 data=guidata(tv.figure);
     ax=gca;
 if ~isfield(data,'ROI_precalc')
-data.ROI_precalc.frame_size=size(ax.Children.CData);
+data.ROI_precalc.frame_size=size(ax.Children.CData');
 [data.ROI_precalc.x,data.ROI_precalc.y]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
 end
 data.ROI=drawpolygon(ax);
