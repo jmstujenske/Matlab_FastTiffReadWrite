@@ -1,5 +1,5 @@
 function [m,n_ch,info]=memory_map_tiff(filename,opt,n_ch,read_only,numFrames)
-%m=memory_map_tiff(filename,opt)
+%m=memory_map_tiff(filename,opt,n_ch,read_only,numFrames)
 %Memory map output of FastTiffSave
 %
 %Input:
@@ -9,7 +9,10 @@ function [m,n_ch,info]=memory_map_tiff(filename,opt,n_ch,read_only,numFrames)
 %matrix concatenates the two channels into a large matrix
 %
 %n_ch - number of channels (default: found in imagedescription, else 1)
-%read_only - default: false;
+%
+%read_only - optional; default: false;
+%
+%numFrames - optional; default: read from tifftags
 %
 %Output:
 %m - memory map
