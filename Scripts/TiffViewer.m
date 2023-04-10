@@ -102,10 +102,9 @@ classdef TiffViewer < handle
                         obj.n_ch=n_ch;
                     end
                 case 'file'
-                    obj.n_ch=map.n_ch;
+                    obj.n_ch=n_ch;
             end
             obj.numFrames=length(obj.memmap_data);
-
             for rep=1:obj.n_ch
                 obj.ax{rep}=uiaxes('Units','normalized','Parent',obj.figure,'Position',[0+(rep-1)*.5 0 .5 .89],'XTick',[],'YTick',[]);
                 set(obj.ax{rep},'XLim',[1 width],'YLim',[1 height]);

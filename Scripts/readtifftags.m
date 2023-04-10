@@ -200,6 +200,7 @@ if NextIFD~=0 && lasttag~=1
         end
         %%%check for logical arrangement of files: fid first, first interleaved, or
         %%%fid end.
+        
         if all(db(2:end)==db(1))
             if db(2)>=data_size-1 %interleaved
                 
@@ -238,6 +239,7 @@ if NextIFD~=0 && lasttag~=1
             mattoassign=info(2).(offset_field)(:)';
             len_offs=length(info(2).(offset_field));
             n_tifs=min(lasttag,n_tifs);
+            info(2).GapBetweenImages=info(1).GapBetweenImages;
             info_old=info(1);
             info=repmat(info(2),n_tifs,1);
             info(1).(offset_field)=info_old.(offset_field);
