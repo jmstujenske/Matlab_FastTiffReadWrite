@@ -1,5 +1,5 @@
-function FastTiffSave(vid,filename,frame_start,frame_end,imagedesc)
-%function FastTiffSave(vid,filename,frame_start,frame_end,image_description)
+function FastTiffSave(vid,filename,frame_start,frame_end,info)
+%function FastTiffSave(vid,filename,frame_start,frame_end,info)
 %Saves Image Stack at speed comparable to ImageJ
 %
 %Typical implementation: FastTiffSave(vid,filename);
@@ -9,7 +9,9 @@ function FastTiffSave(vid,filename,frame_start,frame_end,imagedesc)
 %filename = destination to save stack
 %frame_start (optional) = first frame to save (default: 1)
 %frame_end (optional) = last frame to save (default: t)
-%image_description (optional) = ImageDescription tiff tag as uint8/char
+%info (optional) = Tiff tag structure (as from readtifftags)
+%                  The only ones utilized are XResolution,
+%                  ImageDescription, and Compression. Can add manually.
 %
 %Outputs: None; Video will be saved as .tif
 %
@@ -22,6 +24,8 @@ function FastTiffSave(vid,filename,frame_start,frame_end,imagedesc)
 %
 %Edit: March 17, 2021: added ability to add an image description, for
 %better compatibility with multi-color stacks
+%
+%Edit: April 10, 2023: added ability to pull in full info
 %
 %Here is code to add an imagej header that will indicate a multi-color
 %z-stack given n_z (number of z-stacks). Modify other parameters to your
@@ -52,9 +56,24 @@ switch filetype
                         error('class not supported')
 end
 im_size=size(vid);
-if nargin<5 || isempty(imagedesc)
-    imagedesc=[];
+imagedesc=[];
+Xres=[];
+compress=[];
+if nargin<5 || isempty(info)
+    info=[];
 else
+    if isfield(info,'ImageDescription')
+        imagedesc=info.ImageDescription;
+    end
+    if isfield(info,'XResolution')
+        Xres=info.XResolution;
+    end
+    if isfield(info,'Compression')
+        compress=info.Compression;
+        if strcmpi(compress,'uncompressed')
+            compress=0;
+        end
+    end
     imagedesc=uint8(imagedesc);
 end
 if nargin<4 || isempty(frame_end)
@@ -71,10 +90,10 @@ nFrames=frame_end-frame_start+1;
 predicted_filesize=(im_size(1)*im_size(2)*bps+15*12)*nFrames+8;
 if predicted_filesize<3.99e9 %make sure less than 3.99GB, to be conservative
     disp('Saving as Regular Tiff.')
-    TiffWriter=Fast_Tiff_Write(filename,[],[],imagedesc);
+    TiffWriter=Fast_Tiff_Write(filename,Xres,compress,imagedesc);
 else
     disp('Big Video Detected. Saving as BigTiff.')
-    TiffWriter=Fast_BigTiff_Write(filename,[],[],imagedesc);
+    TiffWriter=Fast_BigTiff_Write(filename,Xres,compress,imagedesc);
 end
 tic;for a=frame_start:frame_end;TiffWriter.WriteIMG(vid(:,:,a)');end;close(TiffWriter);duration=toc;
 disp(['File Saved in ',num2str(duration),' seconds'])

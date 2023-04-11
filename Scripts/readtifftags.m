@@ -109,8 +109,8 @@ Dic{i}='336,DotRange'; i=i+1;
 Dic{i}='337,TargetPrinter'; i=i+1;
 Dic{i}='338,ExtraSamples'; i=i+1;
 Dic{i}='339,SampleFormat'; i=i+1;
-Dic{i}='340,MinSampleValue'; i=i+1;
-Dic{i}='341,MaxSampleValue'; i=i+1;
+Dic{i}='340,SMinSampleValue'; i=i+1;
+Dic{i}='341,SMaxSampleValue'; i=i+1;
 Dic{i}='342,TransferRange'; i=i+1;
 Dic{i}='343,ClipPath'; i=i+1;
 Dic{i}='33432,Copyright'; i=i+1;
@@ -296,6 +296,7 @@ end
 fclose(fp);
 
 function [TiffInfo,NextIFD]=readIFD_42(fp,PositionIFD,TagId,TagName,previousinfo)
+keyboard
 if nargin>4
     TiffInfo=previousinfo;
     fieldnames=fields(TiffInfo);
@@ -456,6 +457,7 @@ end
 NextIFD=fread(fp,1,'uint32=>uint32');
 
 function [TiffInfo,NextIFD]=readIFD_43(fp,PositionIFD,TagId,TagName,previousinfo)
+
 if nargin>4
     TiffInfo=previousinfo;
     fieldnames=fields(TiffInfo);
@@ -464,6 +466,7 @@ if nargin>4
     end
 else
     TiffInfo=struct();
+    
 end
 global FILESIZE BYTEORDER
 % Get number of Tags

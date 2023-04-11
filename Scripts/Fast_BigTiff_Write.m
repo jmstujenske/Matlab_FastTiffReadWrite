@@ -142,7 +142,7 @@ classdef Fast_BigTiff_Write  < handle
                 obj.TagList(71:75) = obj.TifTag(obj,'SampleFormat','short',1,sf);
                 if ~isempty(obj.imagedesc)
                     desc_l=length(obj.imagedesc);
-                pos = ftell(obj.fid);
+                    pos = ftell(obj.fid);
                     fwrite(obj.fid,obj.imagedesc,'uint8');
                     obj.TagList(76:80) = obj.TifTag(obj,'ImageDescription','ascii',desc_l,pos);
                 end
