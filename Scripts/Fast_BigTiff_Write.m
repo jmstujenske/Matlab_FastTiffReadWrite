@@ -118,7 +118,7 @@ classdef Fast_BigTiff_Write  < handle
                 obj.TagList(1:5) = obj.TifTag(obj,'NewSubfileType','long',1,0);
                 obj.TagList(6:10) = obj.TifTag(obj,'ImageWidth','long',1,size(img,1));
                 obj.TagList(11:15) = obj.TifTag(obj,'ImageLength','long',1,size(img,2));
-                if obj.compression ==0
+                if obj.compression==0
                     obj.TagList(21:25) = obj.TifTag(obj,'Compression','short',1,1); %no compression
                 else
                     obj.TagList(21:25) = obj.TifTag(obj,'Compression','short',1,8); %See document #3. 32946 is supported by libTiff as PKZIP-style Deflate encoding

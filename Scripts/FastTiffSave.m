@@ -65,9 +65,10 @@ im_size=size(vid);
 imagedesc=[];
 Xres=[];
 compress=[];
-if nargin<5 || isempty(info)
+if nargin<5
     info=[];
-else
+end
+if ~isempty(info)
     if isfield(info,'ImageDescription')
         imagedesc=info.ImageDescription;
     end
@@ -76,11 +77,14 @@ else
     end
     if isfield(info,'Compression')
         compress=info.Compression;
-        if strcmpi(compress,'uncompressed')
-            compress=0;
+        if strcmpi(compress,'uncompressed') || strcmpi(compress,'NoCompression') || compress==0
+            compress=1;
         end
     end
     imagedesc=uint8(imagedesc);
+end
+if compress==1
+    compress=0;
 end
 if nargin<4 || isempty(frame_end)
     if length(im_size)>2
@@ -95,11 +99,13 @@ end
 nFrames=frame_end-frame_start+1;
 predicted_filesize=(im_size(1)*im_size(2)*bps+15*12)*nFrames+8;
 if predicted_filesize<3.99e9 %make sure less than 3.99GB, to be conservative
-    disp('Saving as Regular Tiff.')
+%     disp('Saving as Regular Tiff.')
     TiffWriter=Fast_Tiff_Write(filename,Xres,compress,imagedesc);
 else
-    disp('Big Video Detected. Saving as BigTiff.')
+%     disp('Big Video Detected. Saving as BigTiff.')
     TiffWriter=Fast_BigTiff_Write(filename,Xres,compress,imagedesc);
 end
-tic;for a=frame_start:frame_end;TiffWriter.WriteIMG(vid(:,:,a)');end;close(TiffWriter);duration=toc;
-disp(['File Saved in ',num2str(duration),' seconds'])
+%tic;
+for a=frame_start:frame_end;TiffWriter.WriteIMG(vid(:,:,a)');end;close(TiffWriter);
+%duration=toc;
+% disp(['File Saved in ',num2str(duration),' seconds'])

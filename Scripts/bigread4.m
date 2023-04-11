@@ -1,5 +1,5 @@
-function [imData,info]=bigread4(path_to_file,sframe,num2read,info,known_gap)
-%[imData,info]=bigread4(path_to_file,sframe,num2read,info,known_gap)
+function [imData,info]=bigread4(path_to_file,sframe,num2read,info)
+%[imData,info]=bigread4(path_to_file,sframe,num2read,info)
 %
 %Only requires location of file as input. Default is to read the full file.
 %imData=bigread4(path_to_file)
@@ -14,9 +14,6 @@ function [imData,info]=bigread4(path_to_file,sframe,num2read,info,known_gap)
 %num2read (optional) = number of frames to read (NOT LAST FRAME NUMBER)
 %info (optional) = output of imfinfo(path_to_file) or readtifftags(path_to_file)
 %(Note this is NOT equivalent to info output of this script if a frame subset is selected.)
-%known_gap (optional) = gap between images in bytes (if known; this is really
-%only available as an option in case the automatic calculation makes an
-%error, which shouldn't happen).
 %
 %Output:
 %imData=NxMxT array of same precision as file
@@ -263,7 +260,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
     if isfield(info,'Compression') || isfield(info,'CompressionString')
         if isfield(info,'Compression')
             if ischar(info(1).Compression)
-                if strcmp(info(1).Compression,'Uncompressed')
+                if strcmpi(info(1).Compression,'uncompressed') || strcmpi(info(1).Compression,'nocompression')
                     compressedfile=0;
                 end
             else
@@ -272,7 +269,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 end
             end
         elseif isfield(info,'CompressionString')
-            if strcmp(info(1).CompressionString,'NoCompression')
+            if strcmpi(info(1).CompressionString,'nocompression')
                 compressedfile=0;
             end
         end
@@ -282,7 +279,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
     fileprocessed=0;
     %     sframemsg = ['Reading from frame ',num2str(sframe),' to frame ',num2str(num2read+sframe-1),' of ',num2str(numFrames), ' total frames'];
     %     disp(sframemsg)
-    if  ~compressedfile
+    if ~compressedfile
         fp = fopen(path_to_file ,'rb',formatline);
         %     try
 
@@ -311,7 +308,6 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             uneven_flag=2;
         end
         if ~uneven_flag
-            if nargin<5 || isempty(known_gap)
                 if isfield(info,'GapBetweenImages')
                     gapimages=max(0,info(1).GapBetweenImages);
 
@@ -364,10 +360,6 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 if gapimages~=0
                     disp(['Gap Between Images Detected: ',num2str(gapimages),' Bytes'])
                 end
-            else
-                gapimages=known_gap;
-                disp(['Using Known Gap Between Images Detected: ',num2str(gapimages),' Bytes'])
-            end
         else
             if uneven_flag==1
                 disp('Data Unevenly Spaced. Tiff reading with Tiff class may be faster, but we will give it a go anyway...')
