@@ -80,7 +80,6 @@ classdef Fast_Tiff_Write  < handle
                 %store basic image information in the class
                 obj.imsize=size(img);
                 obj.classname = class(img);
-                
                 %find nr of bytes per sample and sampleformat
                 switch obj.classname
                     case {'double'}
@@ -94,6 +93,12 @@ classdef Fast_Tiff_Write  < handle
                         bps = 2;sf=1;
                     case {'uint8'}
                         bps = 1;sf=1;
+                    case {'int16'}
+                        bps = 2;sf=2;
+                    case {'int8'}
+                        bps = 1;sf=2;
+                    case {'int32'}
+                        bps = 4;sf=2;
                     otherwise
                         error('class not supported')
                 end

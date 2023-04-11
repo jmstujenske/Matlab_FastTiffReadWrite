@@ -296,7 +296,6 @@ end
 fclose(fp);
 
 function [TiffInfo,NextIFD]=readIFD_42(fp,PositionIFD,TagId,TagName,previousinfo)
-keyboard
 if nargin>4
     TiffInfo=previousinfo;
     fieldnames=fields(TiffInfo);

@@ -40,17 +40,60 @@ end
   end
 offset=info(1).(offset_field)(1);
 bd=info(1).BitsPerSample;
+    if isfield(info,'SampleFormat')
+        sf = info(1).SampleFormat;
+    else
+        sf=1;
+    end
+    if sf==4
+        error('Unknown data format.')
+    end
+    switch lower(sf)
+        case {char("two's complement signed integer")}
+            sf=2;
+        case {'unsigned integer'}
+            sf=1;
+        case {'ieee floating point'}
+            sf=3;
+        case {'undefined data format'}
+            error('Unknown data format.')
+    end
+
     if (bd==64)
-        form='double';
+        switch sf
+            case 3
+                form='double';
+            case 2
+                form='int64';
+            case 1
+                form='uint64';
+        end
         %         bps=8;
     elseif(bd==32)
-        form='single';
+        switch sf
+            case 3
+                form='single';
+            case 2
+                form='int32';
+            case 1
+                form='uint32';
+        end
         %         bps=4;
     elseif (bd==16)
-        form='uint16';
+        switch sf
+            case 1
+                form='uint16';
+            case 2
+                form='int16';
+        end
         %         bps=2;
     elseif (bd==8)
-        form='uint8';
+        switch sf
+            case 1
+                form='uint8';
+            case 2
+                form='int8';
+        end
         %         bps=1;
     end
     if isfield(info,'Width')

@@ -188,17 +188,60 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             he_w=t_per_w*info(1).TileWidth;
             he_h=t_per_h*info(1).TileLength;
     end
+    if isfield(info,'SampleFormat')
+        sf = info(1).SampleFormat;
+    else
+        sf=1;
+    end
+    if sf==4
+        error('Unknown data format.')
+    end
+    switch lower(sf)
+        case {char("two's complement signed integer")}
+            sf=2;
+        case {'unsigned integer'}
+            sf=1;
+        case {'ieee floating point'}
+            sf=3;
+        case {'undefined data format'}
+            error('Unknown data format.')
+    end
+
     if (bd==64)
-        form='double';
+        switch sf
+            case 3
+                form='double';
+            case 2
+                form='int64';
+            case 1
+                form='uint64';
+        end
         %         bps=8;
     elseif(bd==32)
-        form='single';
+        switch sf
+            case 3
+                form='single';
+            case 2
+                form='int32';
+            case 1
+                form='uint32';
+        end
         %         bps=4;
     elseif (bd==16)
-        form='uint16';
+        switch sf
+            case 1
+                form='uint16';
+            case 2
+                form='int16';
+        end
         %         bps=2;
     elseif (bd==8)
-        form='uint8';
+        switch sf
+            case 1
+                form='uint8';
+            case 2
+                form='int8';
+        end
         %         bps=1;
     end
     if strcmpi(form,'double')
@@ -346,7 +389,18 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             fseek(fp, he+(sframe-1)*(gapimages+sum(info(1).(byte_field))), 'bof');
             if gapimages~=0
 
-                if strcmpi(form,'uint16') || strcmpi(form,'uint8') || strcmpi(form,'single')
+                if strcmpi(form,'double')
+                    for cnt = sframe:lastframe
+                        tmp1 = fread(fp, he_step, form)';
+                        imData(:,:,cnt-sframe+1)=cast(tmp1,'single');
+                        if cnt~=lastframe
+                            fseek(fp,gapimages,'cof');
+                        end
+                    end
+                    %                     tmp1 = fread(fp, he_step, form)';
+                    %                     imData(:,:,lastframe-sframe+1)=cast(tmp1,'single');
+                else
+                    
                     form=['*',form];
                     for cnt = sframe:lastframe
                         switch off_type
@@ -365,17 +419,6 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                         end
                     end
                     %             imData(:,:,lastframe-sframe+1)=fread(fp, he_step, form)';
-
-                elseif strcmpi(form,'double')
-                    for cnt = sframe:lastframe
-                        tmp1 = fread(fp, he_step, form)';
-                        imData(:,:,cnt-sframe+1)=cast(tmp1,'single');
-                        if cnt~=lastframe
-                            fseek(fp,gapimages,'cof');
-                        end
-                    end
-                    %                     tmp1 = fread(fp, he_step, form)';
-                    %                     imData(:,:,lastframe-sframe+1)=cast(tmp1,'single');
                 end
             else
                 %Could read all of the information at once, but this turned out to
@@ -396,7 +439,23 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                     imData=m.Data.allchans(:,:,sframe:min(end,sframe+num2read-1));
                     return;
                 end
-                if strcmpi(form,'uint16') || strcmpi(form,'uint8') || strcmpi(form,'single')
+                if strcmpi(form,'double')
+                    for cnt = sframe:lastframe
+                        switch off_type
+                            case 'strip'
+                                tmp1 = fread(fp, he_step, form)';
+                                imData(:,:,cnt-sframe+1)=cast(tmp1,'single');
+                            case 'tile'
+                                for read_rep_h=1:n_steps(2)
+                                    for read_rep_w=1:n_steps(1)
+
+                                        tmp1=fread(fp, he_step, form)';
+                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(tmp1,'single');
+                                    end
+                                end
+                        end
+                    end
+                else
                     form=['*',form];
                     %             for cnt = sframe:lastframe
                     %                 imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
@@ -415,52 +474,13 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                                 end
                         end
                     end
-                elseif strcmpi(form,'double')
-                    for cnt = sframe:lastframe
-                        switch off_type
-                            case 'strip'
-                                tmp1 = fread(fp, he_step, form)';
-                                imData(:,:,cnt-sframe+1)=cast(tmp1,'single');
-                            case 'tile'
-                                for read_rep_h=1:n_steps(2)
-                                    for read_rep_w=1:n_steps(1)
-
-                                        tmp1=fread(fp, he_step, form)';
-                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(tmp1,'single');
-                                    end
-                                end
-                        end
-                    end
-
                 end
             end
             fclose(fp);
             %         display('Finished reading images')
         else
             %         he_step=[he_w he_h];
-            if strcmpi(form,'uint16') || strcmpi(form,'uint8') || strcmpi(form,'single')
-                form=['*',form];
-                for cnt = sframe:lastframe
-                    temp_off=info(cnt).(offset_field);
-                    if ~isempty(temp_off)
-                        fseek(fp,info(cnt).(offset_field)(1),'bof');
-                        %                 imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
-                        switch off_type
-                            case 'strip'
-                                imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
-                            case 'tile'
-                                for read_rep_h=1:n_steps(2)
-                                    for read_rep_w=1:n_steps(1)
-
-                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, form)';
-                                    end
-                                end
-                        end
-                    else
-                        lastframe=cnt;
-                    end
-                end
-            elseif strcmpi(form,'double')
+            if strcmpi(form,'double')
                 for cnt = sframe:lastframe
                     temp_off=info(cnt).(offset_field);
                     if ~isempty(temp_off)
@@ -475,6 +495,28 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
 
                                         tmp1=fread(fp, he_step, form)';
                                         imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(tmp1,'single');
+                                    end
+                                end
+                        end
+                    else
+                        lastframe=cnt;
+                    end
+                end
+            else
+                form=['*',form];
+                for cnt = sframe:lastframe
+                    temp_off=info(cnt).(offset_field);
+                    if ~isempty(temp_off)
+                        fseek(fp,info(cnt).(offset_field)(1),'bof');
+                        %                 imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
+                        switch off_type
+                            case 'strip'
+                                imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
+                            case 'tile'
+                                for read_rep_h=1:n_steps(2)
+                                    for read_rep_w=1:n_steps(1)
+
+                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, form)';
                                     end
                                 end
                         end
