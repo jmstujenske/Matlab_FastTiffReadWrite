@@ -429,6 +429,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 try
                     m=memory_map_tiff(path_to_file,'matrix',1,[],numFrames);
                     imData=m.Data.allchans(:,:,sframe:min(end,sframe+num2read-1));
+                    imData=permute(imData,[2 1 3]);
                     return;
                 end
                 if strcmpi(form,'double')
