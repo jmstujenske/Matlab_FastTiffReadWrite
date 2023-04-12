@@ -1,6 +1,9 @@
 # Matlab_FastTiffReadWrite
- Functions to read tiffs and write tiffs quickly in matlab
- J.M. Stujenske
+Functions to read tiffs and write tiffs quickly in matlab
+ 
+Includes a TiffViewer that can quickly visualize a large stack and the ability to use tiffs are memory mapped files
+
+J.M. Stujenske
 
 # 1. Read / Write Functions:
  
