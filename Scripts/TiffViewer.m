@@ -1,9 +1,13 @@
 classdef TiffViewer < handle
-    %Class to view tiffs using memory mamping
-    %Sample usage:
-    %tv=TiffViewer('test.tif');
+    %Class to view tiffs using memory mapping
+    %tv=TiffViewer(input,n_ch);
     %
-    %GUI fill popup and has intuitive controls.
+    %input = .tif file path, .bin file path, or matrix
+    %
+    %n_ch = number of channels in the file (default behavior: will try to
+    %determine from the file, if possible; if not, 1).
+    %
+    %GUI will popup and has intuitive controls.
     %
     %Controls:
     %
@@ -38,6 +42,7 @@ classdef TiffViewer < handle
             if nargin<2
                 n_ch=[];
             end
+            if ischar(filename)
             [folder,file,ext]=fileparts(filename);
             if strcmp(ext,'.tif') || strcmp(ext,'.tiff')
             info = readtifftags(filename);
@@ -56,14 +61,14 @@ classdef TiffViewer < handle
             else
                 uneven_flag=0;
             end
-            if ~uneven_flag
+            if ~uneven_flag || strcmp(ext,'.bin')
                 obj.map_type='mem';
                 
                 switch ext
                     case {'.tif','.tiff'}
-                obj.memmap = memory_map_tiff(filename,[],n_ch,true);
-                            width=info(1).ImageWidth;
-            height=info(1).ImageHeight;
+                        obj.memmap = memory_map_tiff(filename,[],n_ch,true);
+                        width=info(1).ImageWidth;
+                        height=info(1).ImageHeight;
                     case '.bin'
                         userinputs=inputdlg({'Specify frame size as a matrix:','Number of channels:','data format:'});
                         framesize=eval(userinputs{1});
@@ -88,6 +93,23 @@ classdef TiffViewer < handle
                 obj.memmap = set_up_file(filename,info,n_ch);
                 obj.memmap_data = 1;
             end
+            elseif isnumeric(filename)
+                if isempty(n_ch)
+                    n_ch=1;
+                end
+                [height width numFrames]=size(filename);
+
+                data=[];
+                ch_names=cell(1,n_ch);
+                for ch_rep=1:n_ch
+                    data=cat(2,data,squeeze((mat2cell(filename(:,:,ch_rep:n_ch:end),height,width,ones(size(filename,3)/n_ch,1)))));
+                    ch_names(ch_rep)={['channel',num2str(ch_rep)]};
+                end
+                    obj.memmap_data=cell2struct(data,ch_names,2)';
+                obj.map_type='mem';
+            else
+                error('Input type not recognized.')
+            end
             scaleval=.6;
             obj.figure=figure('Units','normalized','Position',[.1 .1 scaleval scaleval],'AutoResizeChildren','off','CloseRequestFcn',@(x,event) closefcn(x,event,obj));
             switch obj.map_type
@@ -106,9 +128,10 @@ classdef TiffViewer < handle
             end
             obj.numFrames=length(obj.memmap_data);
             for rep=1:obj.n_ch
-                obj.ax{rep}=uiaxes('Units','normalized','Parent',obj.figure,'Position',[0+(rep-1)*.5 0 .5 .89],'XTick',[],'YTick',[]);
+                obj.ax{rep}=axes('Units','normalized','Parent',obj.figure,'Position',[0+(rep-1)*.5 0 .5 .89],'XTick',[],'YTick',[]);
                 set(obj.ax{rep},'XLim',[1 width],'YLim',[1 height]);
             end
+            linkaxes(cat(1,obj.ax{:}));
             myslider(obj);
             data=guidata(obj.figure);
             data.CurrFrame=1;
@@ -147,6 +170,7 @@ classdef TiffViewer < handle
                 switch obj.map_type
                     case 'mem'
                         imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
+                        set(obj.ax{a},'XTick',[],'YTick',[])
                     case 'file'
                         obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
                         fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
@@ -162,13 +186,13 @@ end
 
 function myslider(tv)
 data=guidata(tv.figure);
-data.h.slide = uicontrol('style','slider','units','normalized','position',[0.05 .9 .5 .05],'Parent',tv.figure,'Max',tv.numFrames,'Min',1,'Value',1,'SliderStep',[1, 1] / (tv.numFrames - 1));
-data.h.edit = uicontrol('style','edit','units','normalized','position',[.57 .9 .05 .05],'Parent',tv.figure,'Max',1,'Min',1,'String',num2str(1),'callback',{@(hObject, event) makeplot2(hObject, event,tv)});
-data.h.play = uicontrol('style','pushbutton','units','normalized','position',[0 .9 .05 .05],'String','>','callback',{@(hObject,event) play_but_down(hObject,event,tv)});
-data.h.setfps = uicontrol('style','pushbutton','units','normalized','position',[.65 .9 .1 .05],'String','Set FPS','callback',{@(hObject,event) fps_but_down(hObject,event,tv)});
-data.h.maxp = uicontrol('style','pushbutton','units','normalized','position',[.8 .9 .1 .05],'String','Max P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'max')});
-data.h.meanp = uicontrol('style','pushbutton','units','normalized','position',[.9 .9 .1 .05],'String','Mean P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'mean')});
-data.h.ROI = uicontrol('style','pushbutton','units','normalized','position',[.75 .9 .05 .05],'String','ROI ts','callback',{@(hObject,event) ROI_select(hObject,event,tv)});
+data.h.slide = uicontrol('style','slider','units','normalized','position',[0.05 .92 .5 .05],'Parent',tv.figure,'Max',tv.numFrames,'Min',1,'Value',1,'SliderStep',[1, 1] / (tv.numFrames - 1));
+data.h.edit = uicontrol('style','edit','units','normalized','position',[.57 .92 .05 .05],'Parent',tv.figure,'Max',1,'Min',1,'String',num2str(1),'callback',{@(hObject, event) makeplot2(hObject, event,tv)});
+data.h.play = uicontrol('style','pushbutton','units','normalized','position',[0 .92 .05 .05],'String','>','callback',{@(hObject,event) play_but_down(hObject,event,tv)});
+data.h.setfps = uicontrol('style','pushbutton','units','normalized','position',[.65 .92 .1 .05],'String','Set FPS','callback',{@(hObject,event) fps_but_down(hObject,event,tv)});
+data.h.maxp = uicontrol('style','pushbutton','units','normalized','position',[.8 .92 .1 .05],'String','Max P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'max')});
+data.h.meanp = uicontrol('style','pushbutton','units','normalized','position',[.9 .92 .1 .05],'String','Mean P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'mean')});
+data.h.ROI = uicontrol('style','pushbutton','units','normalized','position',[.75 .92 .05 .05],'String','ROI ts','callback',{@(hObject,event) ROI_select(hObject,event,tv)});
 
 guidata(tv.figure,data);
 tv.listener=addlistener(data.h.slide,'ContinuousValueChange',@(hObject, event) makeplot(hObject, event,tv));
@@ -241,11 +265,12 @@ figure;
 max_time=20;
     set(tv.figure, 'pointer', 'watch');
 drawnow;
+sub_handle_popup=zeros(1,tv.n_ch);
 switch tv.map_type
     case 'mem'
         for a=1:tv.n_ch
             tic;
-            subplot(1,tv.n_ch,a)
+            sub_handle_popup(a)=subplot(1,tv.n_ch,a);
 
             switch type
                 case 'mean'
@@ -290,6 +315,7 @@ switch tv.map_type
         warning('Could not memory map, so projection would take too long.');
 end
 disp('Projection Done.');
+linkaxes(sub_handle_popup);
 set(tv.figure, 'pointer', 'arrow');
 
 end
