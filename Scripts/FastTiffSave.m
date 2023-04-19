@@ -45,9 +45,21 @@ function FastTiffSave(vid,filename,frame_start,frame_end,info)
 filetype=class(vid);
 switch filetype
                     case {'double'}
-                        error('64 bit precision not yet supported')
+%                         warning('converting to from 64-bit double precision to 32-bit single precision')
+%                         img=single(img);
+%                         obj.classname='single';
+                        bps = 8;sf=3;
+                        disp('Warning: Double precision not recommended unless that level of precision is necessary.');
+                    case {'int64'}
+                        bps = 8;sf=2;
+                    case {'uint64'}
+                        bps = 8;sf=1;
                     case {'single'}
                         bps = 4;sf=3;
+                    case {'int32'}
+                        bps = 4;sf=2;
+                    case {'uint32'}
+                        bps = 4;sf=1;
                     case {'uint16'}
                         bps = 2;sf=1;
                     case {'uint8'}
@@ -56,8 +68,6 @@ switch filetype
                         bps = 2;sf=2;
                     case {'int8'}
                         bps = 1;sf=2;
-                    case {'int32'}
-                        bps = 4;sf=2;
                     otherwise
                         error('class not supported')
 end

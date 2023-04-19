@@ -86,12 +86,20 @@ classdef Fast_BigTiff_Write  < handle
                 %find nr of bytes per sample and sampleformat
                 switch obj.classname
                     case {'double'}
-                        warning('converting to from 64-bit double precision to 32-bit single precision')
-                        img=single(img);
-                        obj.classname='single';
-                        bps = 4;sf=3;
+%                         warning('converting to from 64-bit double precision to 32-bit single precision')
+%                         img=single(img);
+%                         obj.classname='single';
+                        bps = 8;sf=3;
+                    case {'int64'}
+                        bps = 8;sf=2;
+                    case {'uint64'}
+                        bps = 8;sf=1;
                     case {'single'}
                         bps = 4;sf=3;
+                    case {'int32'}
+                        bps = 4;sf=2;
+                    case {'uint32'}
+                        bps = 4;sf=1;
                     case {'uint16'}
                         bps = 2;sf=1;
                     case {'uint8'}
@@ -100,8 +108,6 @@ classdef Fast_BigTiff_Write  < handle
                         bps = 2;sf=2;
                     case {'int8'}
                         bps = 1;sf=2;
-                    case {'int32'}
-                        bps = 4;sf=2;
                     otherwise
                         error('class not supported')
                 end

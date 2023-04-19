@@ -63,7 +63,7 @@ if nargin<2 || isempty(sframe)
     num2read=inf;
 end
 if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
-
+    
     %get image info
     if nargin<4 || isempty(info)
         try
@@ -90,7 +90,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         numFrames=length(info);
         %     numFrames=blah(1);
     end
-
+    
     %     numFrames=info.UnknownTags(end).ID;
     % numFrames=str2double(info.ImageDescription(strfind(info.ImageDescription,'frames=')+7:strfind(info.ImageDescription,'mode=')-1));
     %deal with ImageJ BigTiff files:
@@ -122,8 +122,8 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             end
         end
     end
-
-
+    
+    
     if nargin<3 || isempty(num2read) || isinf(num2read)
         num2read=numFrames;
     end
@@ -134,8 +134,8 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         num2read=1;
     end
     if sframe>numFrames
-%         sframe=numFrames;
-%         num2read=1;
+        %         sframe=numFrames;
+        %         num2read=1;
         disp('Starting frame has to be less than number of total frames. Returning empty.');
         imData=[];info=[];
         return;
@@ -203,7 +203,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         case {'undefined data format'}
             error('Unknown data format.')
     end
-
+    
     if (bd==64)
         switch sf
             case 3
@@ -282,9 +282,9 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
     if ~compressedfile
         fp = fopen(path_to_file ,'rb',formatline);
         %     try
-
+        
         % Use low-level File I/O to read the file
-
+        
         if ~isfield(info,'FileSize')
             fseek(fp,0,'eof');
             filesize = ftell(fp);
@@ -308,71 +308,28 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             uneven_flag=2;
         end
         if ~uneven_flag
-                if isfield(info,'GapBetweenImages')
-                    gapimages=max(0,info(1).GapBetweenImages);
-
+            if isfield(info,'GapBetweenImages')
+                gapimages=max(0,info(1).GapBetweenImages);
+            else
+                %rare that we will need to calculate gap, but added this just in
+                %case...
+                if length(info)==1 %imagej bigtiff
+                    gapimages=0;
                 else
-                    %rare that we will need to calculate gap, but added this just in
-                    %case...
-                    if length(info)==1 %imagej bigtiff
-                        gapimages=0;
-                    else
-                        stripstarts=vertcat(info(1:end).(offset_field));
-                        gapimages=nanmean(diff(stripstarts(:,1))-sum(info(1).(byte_field)));
-                        if gapimages<0
-                            gapimages=nanmean(diff(stripstarts(:,1))-(info(1).(byte_field)(1)));
-                        end
+                    stripstarts=vertcat(info(1:end).(offset_field));
+                    gapimages=nanmean(diff(stripstarts(:,1))-sum(info(1).(byte_field)));
+                    if gapimages<0
+                        gapimages=nanmean(diff(stripstarts(:,1))-(info(1).(byte_field)(1)));
                     end
-                    %         tifffields=fields(info);
-                    %         %define valid tiff headers, to distinguish from fields in tiff info
-                    %         %that are not actually in header file
-                    %         Dic={'NewSubfileType','SubfileType','ImageWidth','ImageHeight',...
-                    %             'BitsPerSample','Compression','PhotometricInterpretation',...
-                    %             'Treshholding','CellWidth','CellLength','FillOrder',...
-                    %             'DocumentName','ImageDescription','Make','Model',...
-                    %             'StripOffsets','Orientation','SamplesPerPixel',...
-                    %             'RowsPerStrip','StripByteCounts','MinSampleValue','MaxSampleValue',...
-                    %             'Xresolution','Yresolution','PlanarConfiguration','PageName',...
-                    %             'XPosition','YPosition','FreeOffsets','FreeByteCounts',...
-                    %             'GrayResponseUnit','GrayResponseCurve','T4Options','T6Options',...
-                    %             'ResolutionUnit','PageNumber','TransferFunction','Software',...
-                    %             'DateTime','Artist','HostComputer','Predictor',...
-                    %             'ColorImageType','ColorList','Colormap','HalftoneHints',...
-                    %             'TileWidth','TileLength','TileOffsets','TileByteCounts',...
-                    %             'BadFaxLines','SubIFDs','InkSet','InkNames',...
-                    %             'NumberOfInks','DotRange','TargetPrinter','ExtraSamples',...
-                    %             'SampleFormat','MinSampleValue','MaxSampleValue','TransferRange',...
-                    %             'ClipPath','Copyright'};
-                    % nfields=0;for tagrep=1:length(tifffields);nfields=nfields+any(strcmp(deblank(tifffields{tagrep}),Dic));end
-                    %         if filesize>4e9 && length(info)>1 %BigTiff likely unless imagej file
-                    %         lengthfids=16+nfields*20;
-                    %         else
-                    %             lengthfids=6+nfields*12; %Standard tiff
-                    %         end
-                    %         if he<lengthfids %FIDS likely not at the beginning
-                    %         gapimages=max(0,floor((filesize-he-numFrames*(sum(info(1).(byte_field))+lengthfids))/numFrames));
-                    %         disp('TiffTags are at end of file. Calculated gap may be wrong if Tiff includes non-standard tiff tags.')
-                    %         else
-                    %                     gapimages=max(0,floor((filesize-he-numFrames*(sum(info(1).(byte_field))))/numFrames));
-                    %         end
-
                 end
-                if gapimages~=0
-                    disp(['Gap Between Images Detected: ',num2str(gapimages),' Bytes'])
-                end
+            end
         else
-            if uneven_flag==1
-                disp('Data Unevenly Spaced. Tiff reading with Tiff class may be faster, but we will give it a go anyway...')
-            end
-            if nargin>4
-                disp('Ignoring gap between images because it is not relevant.')
-            end
+                disp('Data Unevenly Spaced. Tiff reading with Tiff class may be faster.')
         end
-
-        %go to start of first strip
         switch off_type
             case 'strip'
                 he_step=[he_w he_h];
+                n_steps=[];
             case 'tile'
                 he_step=[he_w/t_per_w he_h/t_per_h];
                 n_steps=[t_per_w t_per_h];
@@ -380,146 +337,26 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         if ~uneven_flag
             fseek(fp, he+(sframe-1)*(gapimages+sum(info(1).(byte_field))), 'bof');
             if gapimages~=0
-
-                if strcmpi(form,'double')
-                    for cnt = sframe:lastframe
-                        tmp1 = fread(fp, he_step, form)';
-                        imData(:,:,cnt-sframe+1)=cast(tmp1,'single');
-                        if cnt~=lastframe
-                            fseek(fp,gapimages,'cof');
-                        end
-                    end
-                    %                     tmp1 = fread(fp, he_step, form)';
-                    %                     imData(:,:,lastframe-sframe+1)=cast(tmp1,'single');
-                else
-                    
-                    form=['*',form];
-                    for cnt = sframe:lastframe
-                        switch off_type
-                            case 'strip'
-                                imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
-                            case 'tile'
-                                for read_rep_h=1:n_steps(2)
-                                    for read_rep_w=1:n_steps(1)
-
-                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, form)';
-                                    end
-                                end
-                        end
-                        if cnt~=lastframe
-                            fseek(fp,gapimages,'cof');
-                        end
-                    end
-                    %             imData(:,:,lastframe-sframe+1)=fread(fp, he_step, form)';
-                end
+                [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,'even');
             else
-                %Could read all of the information at once, but this turned out to
-                %be slower and likely to give memory error for double data:
-                %         he_step=[he_w*he_h*(lastframe-sframe+1)];
-                %             if strcmpi(form,'uint16') || strcmpi(form,'uint8') || strcmpi(form,'single')
-                %                 imData(:) = fread(fp, he_step, ['*',form]);
-                % %                 imData(:)=cast(tmp1,form);
-                % imData=permute(imData,[2 1 3]);
-                %         elseif strcmpi(form,'double')
-                %                     tmp1 = fread(fp, he_step, [form]);
-                % %                     imData(:)=cast(tmp1,'single');
-                % imData=permute(imData,[2 1 3]);
-                %     end
-                %         he_step=[he_w he_h];
                 try
+                    %reading with memory map is faster if the data is all
+                    %in one block
                     m=memory_map_tiff(path_to_file,'matrix',1,[],numFrames);
                     imData=m.Data.allchans(:,:,sframe:min(end,sframe+num2read-1));
                     imData=permute(imData,[2 1 3]);
                     return;
-                end
-                if strcmpi(form,'double')
-                    for cnt = sframe:lastframe
-                        switch off_type
-                            case 'strip'
-                                tmp1 = fread(fp, he_step, form)';
-                                imData(:,:,cnt-sframe+1)=cast(tmp1,'single');
-                            case 'tile'
-                                for read_rep_h=1:n_steps(2)
-                                    for read_rep_w=1:n_steps(1)
-
-                                        tmp1=fread(fp, he_step, form)';
-                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(tmp1,'single');
-                                    end
-                                end
-                        end
-                    end
-                else
-                    form=['*',form];
-                    %             for cnt = sframe:lastframe
-                    %                 imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
-                    %             end
-                    for cnt = sframe:lastframe
-                        switch off_type
-                            case 'strip'
-                                imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
-                                fseek(fp,gapimages,'cof');
-                            case 'tile'
-                                for read_rep_h=1:n_steps(2)
-                                    for read_rep_w=1:n_steps(1)
-
-                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, form)';
-                                    end
-                                end
-                        end
-                    end
+                catch
+                    [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,'even');
                 end
             end
-            fclose(fp);
+
             %         display('Finished reading images')
         else
-            %         he_step=[he_w he_h];
-            if strcmpi(form,'double')
-                for cnt = sframe:lastframe
-                    temp_off=info(cnt).(offset_field);
-                    if ~isempty(temp_off)
-                        switch off_type
-                            case 'strip'
-                                fseek(fp,info(cnt).(offset_field)(1),'bof');
-                                tmp1 = fread(fp, he_step, form)';
-                                imData(:,:,cnt-sframe+1)=cast(tmp1,'single');
-                            case 'tile'
-                                for read_rep_h=1:n_steps(2)
-                                    for read_rep_w=1:n_steps(1)
+            [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,'uneven',info);
 
-                                        tmp1=fread(fp, he_step, form)';
-                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(tmp1,'single');
-                                    end
-                                end
-                        end
-                    else
-                        lastframe=cnt;
-                    end
-                end
-            else
-                form=['*',form];
-                for cnt = sframe:lastframe
-                    temp_off=info(cnt).(offset_field);
-                    if ~isempty(temp_off)
-                        fseek(fp,info(cnt).(offset_field)(1),'bof');
-                        %                 imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
-                        switch off_type
-                            case 'strip'
-                                imData(:,:,cnt-sframe+1)=fread(fp, he_step, form)';
-                            case 'tile'
-                                for read_rep_h=1:n_steps(2)
-                                    for read_rep_w=1:n_steps(1)
-
-                                        imData(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, form)';
-                                    end
-                                end
-                        end
-                    else
-                        lastframe=cnt;
-                    end
-                end
-            end
-            fclose(fp);
         end
+                    fclose(fp);
         fileprocessed=1;
         if strncmp(off_type,'tile',4)
             imData=imData(1:info(1).(size_fields{2}),1:info(1).(size_fields{1}),:);
@@ -546,11 +383,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             imData(:,:,lastframe) = read(tiff_file);
         catch
             disp('File opening failed. Trying bioformats plugin.')
-            if ~exist('bfopen.m','file')
-                error('Please install bioformats plugin: https://www.openmicroscopy.org/bio-formats/downloads/');
-            end
-            data=bfopen(path_to_file);
-            imData=cat(3,data{1}{:,1});
+            imData=try_bio(path_to_file);
         end
     end
     if length(info)>lastframe
@@ -571,9 +404,62 @@ elseif strcmpi(ext,'.hdf5') || strcmpi(ext,'.h5')
 else
     %     error('Unknown file extension. Only .tiff and .hdf5 files are currently supported');
     disp('Uknown file extension. This function only has support for .tiff and .hdf5 files. Will call bioformats plugin.')
-    if ~exist('bfopen.m','file')
-        error('Please install bioformats plugin: https://www.openmicroscopy.org/bio-formats/downloads/');
+    imData=try_bio(path_to_file);
+end
+
+function imData=try_bio(path_to_file)
+if ~exist('bfopen.m','file')
+    error('Please install bioformats plugin: https://www.openmicroscopy.org/bio-formats/downloads/');
+end
+data=bfopen(path_to_file);
+imData=cat(3,data{1}{:,1});
+
+function [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,opt,info)
+if nargin<10 || isempty(opt)
+    opt='even';
+    info=[];
+end
+size_format=size(imData,1:2);
+for cnt = sframe:lastframe
+    switch opt
+    case 'even'
+    imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
+    if cnt~=lastframe
+        fseek(fp,gapimages,'cof');
     end
-    data=bfopen(path_to_file);
-    imData=cat(3,data{1}{:,1});
+    case 'uneven'
+    temp_off=info(cnt).(offset_field);
+    if ~isempty(temp_off)
+        fseek(fp,info(cnt).(offset_field)(1),'bof');
+        imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
+    else
+        lastframe=cnt;
+    end
+    end
+end
+
+                        
+function imData_next=read_frame(fp,he_step,off_type,form,size_format,n_steps)
+switch off_type
+    case 'strip'
+        if strcmpi(form,'double')
+            tmp1 = fread(fp, he_step, form)';
+            imData_next=cast(tmp1,'single');
+        else
+            imData_next=fread(fp, he_step, ['*',form])';
+        end
+    case 'tile'
+        for read_rep_h=1:n_steps(2)
+            for read_rep_w=1:n_steps(1)
+                if strcmpi(form,'double')
+                    imData_next=zeros(size_format,'single');
+                    
+                    imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(fread(fp, he_step, form)','single');
+                else
+                    imData_next=zeros(size_format,form);
+                    
+                    imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, ['*',form])';
+                end
+            end
+        end
 end
