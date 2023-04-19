@@ -97,6 +97,7 @@ classdef TiffViewer < handle
                 if isempty(n_ch)
                     n_ch=1;
                 end
+                filename=permute(filename,[2 1 3]);
                 [height width numFrames]=size(filename);
 
                 data=[];
@@ -138,7 +139,7 @@ classdef TiffViewer < handle
             obj.fps=30;
             data.timer=timer('ExecutionMode','fixedRate','TimerFcn',{@play_vid,obj},'Period',max(round(1/obj.fps,3),.001));
             guidata(obj.figure,data);
-            disp_frame(obj)
+            disp_frame(obj,[],1);
             maxval=0;
                         switch obj.map_type
                 case 'mem'
@@ -157,7 +158,10 @@ classdef TiffViewer < handle
                         set(obj.ax{a},'CLim',[0 maxval]);
         end
 
-        function disp_frame(obj,frame)
+        function disp_frame(obj,frame,opt)
+            if nargin<3 || isempty(opt)
+                opt=0;
+            end
             data=guidata(obj.figure);
             if data.CurrFrame>obj.numFrames
                 data.CurrFrame=obj.numFrames;
@@ -169,14 +173,25 @@ classdef TiffViewer < handle
             for a=1:obj.n_ch
                 switch obj.map_type
                     case 'mem'
-                        imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
-                        set(obj.ax{a},'XTick',[],'YTick',[])
+                        if opt==0
+                        set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
+%                         set(obj.ax{a},'XTick',[],'YTick',[])
+                        else
+                            imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
+                            set(obj.ax{a},'XTick',[],'YTick',[])
+                        end
                     case 'file'
                         obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
                         fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
                         data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
                         data=reshape(data,obj.memmap.frame_size)';
-                        imagesc(data);
+                        if opt==0
+                            set(obj.ax{a}.Children,'CData',data');
+%                         set(obj.ax{a},'XTick',[],'YTick',[])
+                        else
+                            imagesc(obj.ax{a},data');
+                            set(obj.ax{a},'XTick',[],'YTick',[])
+                        end
                 end
             end
             guidata(obj.figure,data);
