@@ -65,18 +65,15 @@ end
 if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
     
     %get image info
-    if nargin<4 || isempty(info)
+    if nargin<4
+        info=[];
+    end
+    if isempty(info)
         try
             [info]=readtifftags(path_to_file,num2read+sframe-1);%This tif reader assumes that FID info is identical for every image.
             % bps=sum(info.(byte_field))/(info.(size_fields{2})*info.(size_fields{1}));
             % info.BitDepth=8^bps;
             numFrames=length(info);
-            fieldstoadd={'BitDepth','Width','Height'};
-            fieldstomatch={'BitsPerSample','ImageWidth','ImageHeight'};
-            for field_rep=1:3
-                temp=num2cell(repmat(info(1).(fieldstomatch{field_rep}),numFrames,1),2);
-                [info(1:numFrames).(fieldstoadd{field_rep})]=temp{:};
-            end
         catch
             %%This is a slow step; if calling iteratively for the same file, allow for pre-loading info
             %%If we get to this point, the function is almost certainly going to
@@ -85,15 +82,11 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             blah=size(info);
             numFrames=blah(1);
         end
+        providedinfo=false;
     else
-        info=info(sframe:num2read+sframe-1);
+        providedinfo=true;
         numFrames=length(info);
-        %     numFrames=blah(1);
     end
-    
-    %     numFrames=info.UnknownTags(end).ID;
-    % numFrames=str2double(info.ImageDescription(strfind(info.ImageDescription,'frames=')+7:strfind(info.ImageDescription,'mode=')-1));
-    %deal with ImageJ BigTiff files:
     if isfield(info,'ImageDescription')
         if contains(path_to_file,'.ome')
             imd=char(info(1).ImageDescription(:)');
@@ -122,8 +115,18 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             end
         end
     end
-    
-    
+    if providedinfo
+        info=info(sframe:num2read+sframe-1);
+        sframe=1;
+        numFrames=length(info);
+        %     numFrames=blah(1);
+    end
+                fieldstoadd={'BitDepth','Width','Height'};
+            fieldstomatch={'BitsPerSample','ImageWidth','ImageHeight'};
+            for field_rep=1:3
+                temp=num2cell(repmat(info(1).(fieldstomatch{field_rep}),numFrames,1),2);
+                [info(1:numFrames).(fieldstoadd{field_rep})]=temp{:};
+            end
     if nargin<3 || isempty(num2read) || isinf(num2read)
         num2read=numFrames;
     end
@@ -313,7 +316,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 uneven_flag=0;%%probably imagej 'bigtiff' --let's assume even spacing;
             end
         else
-             uneven_flag=2;
+            uneven_flag=2;
         end
         if ~uneven_flag
             if isfield(info,'GapBetweenImages')
@@ -348,13 +351,13 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                     [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,'even');
                 end
             end
-
+            
             %         display('Finished reading images')
         else
             [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,[],off_type,n_steps,'uneven',info,offset_field);
-
+            
         end
-                    fclose(fp);
+        fclose(fp);
         fileprocessed=1;
         if strncmp(off_type,'tile',4)
             imData=imData(1:info(1).(size_fields{2}),1:info(1).(size_fields{1}),:);
@@ -420,23 +423,23 @@ end
 size_format=size(imData,1:2);
 for cnt = sframe:lastframe
     switch opt
-    case 'even'
-    imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
-    if cnt~=lastframe
-        fseek(fp,gapimages,'cof');
-    end
-    case 'uneven'
-    temp_off=info(cnt).(offset_field);
-    if ~isempty(temp_off)
-        fseek(fp,info(cnt).(offset_field)(1),'bof');
-        imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
-    else
-        lastframe=cnt;
-    end
+        case 'even'
+            imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
+            if cnt~=lastframe
+                fseek(fp,gapimages,'cof');
+            end
+        case 'uneven'
+            temp_off=info(cnt).(offset_field);
+            if ~isempty(temp_off)
+                fseek(fp,info(cnt).(offset_field)(1),'bof');
+                imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
+            else
+                lastframe=cnt;
+            end
     end
 end
 
-                        
+
 function imData_next=read_frame(fp,he_step,off_type,form,size_format,n_steps)
 switch off_type
     case 'strip'
