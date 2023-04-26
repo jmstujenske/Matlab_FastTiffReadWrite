@@ -31,6 +31,7 @@ classdef TiffViewer < handle
         memmap_data
         fps
         map_type
+        max_time=20;
     end
     properties(Hidden = true)
         ax
@@ -41,6 +42,13 @@ classdef TiffViewer < handle
         function obj = TiffViewer(filename,n_ch)
             if nargin<2
                 n_ch=[];
+            end
+            if nargin<1 || isempty(filename)
+                filename=uigetfile({'*.tif;*.tiff'});
+                if isempty(n_ch)
+                        userinputs=inputdlg({'Number of channels:'});
+                        n_ch=str2double(userinputs{1});
+                end
             end
             if ischar(filename)
             [folder,file,ext]=fileparts(filename);
@@ -55,8 +63,8 @@ classdef TiffViewer < handle
                     uneven_flag=1;
                 end
             else
-                uneven_flag=1;
-                warning('File cannot be memory mapped. Will read frames from file, which will be slow.');
+                uneven_flag=0;
+%                 warning('File cannot be memory mapped. Will read frames from file, which will be slow.');
             end
             else
                 uneven_flag=0;
@@ -118,8 +126,10 @@ classdef TiffViewer < handle
                     if exist('info','var')
                     if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
                         obj.n_ch=length(fieldnames(obj.memmap_data));
-                    else
+                    elseif length(info)>2
                         obj.n_ch=length(fieldnames(obj.memmap_data))/2;
+                    else
+                        obj.n_ch=length(fieldnames(obj.memmap_data));
                     end
                     else
                         obj.n_ch=n_ch;
@@ -179,6 +189,7 @@ classdef TiffViewer < handle
                         else
                             imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
                             set(obj.ax{a},'XTick',[],'YTick',[])
+                            colormap('gray');
                         end
                     case 'file'
                         obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
@@ -201,14 +212,18 @@ end
 
 function myslider(tv)
 data=guidata(tv.figure);
-data.h.slide = uicontrol('style','slider','units','normalized','position',[0.05 .92 .5 .05],'Parent',tv.figure,'Max',tv.numFrames,'Min',1,'Value',1,'SliderStep',[1, 1] / (tv.numFrames - 1));
+data.h.slide = uicontrol('style','slider','units','normalized','position',[0.05 .92 .5 .05],'Parent',tv.figure,'Max',tv.numFrames,'Min',1,'Value',1,'SliderStep',[1, 1] / (max(tv.numFrames,2) - 1));
 data.h.edit = uicontrol('style','edit','units','normalized','position',[.57 .92 .05 .05],'Parent',tv.figure,'Max',1,'Min',1,'String',num2str(1),'callback',{@(hObject, event) makeplot2(hObject, event,tv)});
 data.h.play = uicontrol('style','pushbutton','units','normalized','position',[0 .92 .05 .05],'String','>','callback',{@(hObject,event) play_but_down(hObject,event,tv)});
 data.h.setfps = uicontrol('style','pushbutton','units','normalized','position',[.65 .92 .1 .05],'String','Set FPS','callback',{@(hObject,event) fps_but_down(hObject,event,tv)});
 data.h.maxp = uicontrol('style','pushbutton','units','normalized','position',[.8 .92 .1 .05],'String','Max P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'max')});
 data.h.meanp = uicontrol('style','pushbutton','units','normalized','position',[.9 .92 .1 .05],'String','Mean P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'mean')});
 data.h.ROI = uicontrol('style','pushbutton','units','normalized','position',[.75 .92 .05 .05],'String','ROI ts','callback',{@(hObject,event) ROI_select(hObject,event,tv)});
-
+if tv.numFrames==1
+    data.h.slide.Visible=false;
+    data.h.play.Visible=false;
+    data.h.setfps.Visible=false;
+end
 guidata(tv.figure,data);
 tv.listener=addlistener(data.h.slide,'ContinuousValueChange',@(hObject, event) makeplot(hObject, event,tv));
 end
@@ -277,7 +292,7 @@ tv.fps=str2double(answer{1});
 end
 function mm_proj(hObject,event,tv,type)
 figure;
-max_time=20;
+max_time=tv.max_time;
     set(tv.figure, 'pointer', 'watch');
 drawnow;
 sub_handle_popup=zeros(1,tv.n_ch);

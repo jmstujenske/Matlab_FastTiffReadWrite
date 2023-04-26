@@ -291,6 +291,14 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         else
             filesize=info.FileSize;
         end
+        switch off_type
+            case 'strip'
+                he_step=[he_w he_h];
+                n_steps=[];
+            case 'tile'
+                he_step=[he_w/t_per_w he_h/t_per_h];
+                n_steps=[t_per_w t_per_h];
+        end
         % The StripOffsets field provides the offset to the first strip. Based on
         % the INFO for this file, each image consists of 1 strip.
         %First let's test if the data is evenly spaced...
@@ -305,7 +313,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 uneven_flag=0;%%probably imagej 'bigtiff' --let's assume even spacing;
             end
         else
-            uneven_flag=2;
+             uneven_flag=2;
         end
         if ~uneven_flag
             if isfield(info,'GapBetweenImages')
@@ -323,16 +331,6 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                     end
                 end
             end
-        else
-                disp('Data Unevenly Spaced. Tiff reading with Tiff class may be faster.')
-        end
-        switch off_type
-            case 'strip'
-                he_step=[he_w he_h];
-                n_steps=[];
-            case 'tile'
-                he_step=[he_w/t_per_w he_h/t_per_h];
-                n_steps=[t_per_w t_per_h];
         end
         if ~uneven_flag
             fseek(fp, he+(sframe-1)*(gapimages+sum(info(1).(byte_field))), 'bof');
@@ -353,7 +351,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
 
             %         display('Finished reading images')
         else
-            [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,'uneven',info);
+            [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,[],off_type,n_steps,'uneven',info,offset_field);
 
         end
                     fclose(fp);
@@ -414,7 +412,7 @@ end
 data=bfopen(path_to_file);
 imData=cat(3,data{1}{:,1});
 
-function [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,opt,info)
+function [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,opt,info,offset_field)
 if nargin<10 || isempty(opt)
     opt='even';
     info=[];

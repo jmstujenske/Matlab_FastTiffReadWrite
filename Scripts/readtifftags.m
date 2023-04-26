@@ -168,7 +168,6 @@ if NextIFD~=0 && lasttag~=1
             done_flag=1;%reallyshorttiff
             buff_foff(n_tifs+1:end)=[];
             break
-            
         elseif n_tifs==lasttag
             done_flag=1;%small number of frames requested
             buff_foff(n_tifs+1:end)=[];
@@ -286,6 +285,13 @@ if NextIFD~=0 && lasttag~=1
                         info(rep).GapBetweenImages=gap;
                         end
                     end
+                elseif length(info)==2
+                    for rep=1:2
+                        db=info(2).(offset_field)(1)-info(1).(offset_field)(1);
+                    info.GapBetweenImages=db;
+                    end
+                else
+                    info.GapBetweenImages=0;
                 end
         end
         
