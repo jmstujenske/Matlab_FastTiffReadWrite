@@ -29,6 +29,7 @@ classdef TiffViewer < handle
         n_ch
         numFrames
         memmap_data
+        memmap_matrix_data
         fps
         map_type
         max_time=20;
@@ -36,6 +37,7 @@ classdef TiffViewer < handle
     properties(Hidden = true)
         ax
         memmap
+        memmap_matrix
         listener
     end
     methods
@@ -75,6 +77,10 @@ classdef TiffViewer < handle
                 switch ext
                     case {'.tif','.tiff'}
                         obj.memmap = memory_map_tiff(filename,[],n_ch,true);
+                        if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
+                        obj.memmap_matrix = memory_map_tiff(filename,'matrix',n_ch,true);
+                        obj.memmap_matrix_data = obj.memmap_matrix.Data.allchans;
+                        end
                         width=info(1).ImageWidth;
                         height=info(1).ImageHeight;
                     case '.bin'
@@ -145,6 +151,7 @@ classdef TiffViewer < handle
             linkaxes(cat(1,obj.ax{:}));
             myslider(obj);
             data=guidata(obj.figure);
+            data.increment=1;
             data.CurrFrame=1;
             obj.fps=30;
             data.timer=timer('ExecutionMode','fixedRate','TimerFcn',{@play_vid,obj},'Period',max(round(1/obj.fps,3),.001));
@@ -250,11 +257,18 @@ pixel_mask=zeros(data.ROI_precalc.frame_size);
 pixel_mask(pixels)=1;
 pixel_mask=logical(pixel_mask);
 z_series=zeros(tv.n_ch,tv.numFrames);
+if isempty(tv.memmap_matrix_data)
     for b=1:tv.n_ch
         for t=1:tv.numFrames
-    z_series(b,t)=nanmean(tv.memmap_data(t).(['channel',num2str(b)])(pixel_mask));
+            z_series(b,t)=nanmean(tv.memmap_data(t).(['channel',num2str(b)])(pixel_mask));
         end
     end
+else
+    for b=1:tv.n_ch
+    ins=find(pixel_mask(:));
+    z_series(b,:)=mean(tv.memmap_matrix_data(ins+(b-1)*numel(pixel_mask)+(0:tv.numFrames-1)*numel(pixel_mask)*tv.n_ch),1);
+    end
+end
 figure;
 colors={'r','g'};
     for b=1:tv.n_ch
@@ -287,8 +301,11 @@ guidata(tv.figure,data);
 end
 
 function fps_but_down(hObject,event,tv)
+data=guidata(tv.figure);
 answer=inputdlg('Input FPS for Video Playback');
 tv.fps=str2double(answer{1});
+guidata(tv.figure,data);
+    
 end
 function mm_proj(hObject,event,tv,type)
 figure;
@@ -304,22 +321,45 @@ switch tv.map_type
 
             switch type
                 case 'mean'
+                    if isempty(tv.memmap_matrix_data)
                     P=(double(tv.memmap_data(1).(['channel',num2str(a)])))/tv.numFrames;
-                    for b=2:length(tv.memmap_data);
+                    for b=2:length(tv.memmap_data)
                         P=P+double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames;
                         if mod(b,1000)==0
                             imagesc(P');axis off;drawnow;
                         end
                         if toc>max_time/2
                             disp(['Max time reached for channel ',num2str(a),'.']);
+                            P=P*(tv.numFrames/b);
+                            disp(['Frames averaged: ',num2str(b)]);
+
                             break;
+                        end
+                    end
+                    else
+                        [y_len,x_len]=size(tv.memmap_matrix_data,1:2);
+                        subdiv=500;
+                        n_subdiv=ceil(tv.numFrames/subdiv);
+                        P=zeros(y_len,x_len/tv.n_ch,'double');
+                        tic;
+                        for rep=1:n_subdiv
+                            frames=1+(rep-1)*subdiv:min(subdiv*rep,tv.numFrames);
+                            P=P+sum(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames),3)/tv.numFrames;
+                            if toc>max_time/2
+                            disp(['Max time reached for channel ',num2str(a),'.']);
+                            P=P*(tv.numFrames/(rep*subdiv));
+                            disp(['Frames averaged: ',num2str(rep*subdiv)]);
+                            break;
+                            end
+                            imagesc(P');axis off;drawnow;
                         end
                     end
                     imagesc(P');axis off;
 
                 case 'max'
-                    P=tv.memmap_data(1).(['channel',num2str(a)]);
                     subsamp=5;
+                    if isempty(tv.memmap_matrix_data)
+                    P=tv.memmap_data(1).(['channel',num2str(a)]);
                     [n m]=size(P,1:2);
                     P=zeros(size(P));
                     temp_frames=zeros(n,m,subsamp,class(P));
@@ -333,8 +373,29 @@ switch tv.map_type
                         end
                         if toc>max_time/2
                             disp(['Max time reached for channel ',num2str(a),'.']);
-
+                            disp(['Frames utilized: ',num2str(b)]);
                             break;
+                        end
+                    end
+                    else
+                        [y_len,x_len]=size(tv.memmap_matrix_data,1:2);
+                        subdiv=500;
+                        n_subdiv=ceil(tv.numFrames/subdiv);
+                        P=zeros(y_len,x_len/tv.n_ch,'double');
+                        tic;
+                        for rep=1:n_subdiv
+                            frames=1+(rep-1)*subdiv:min(subdiv*rep,tv.numFrames);
+                            temp_frames=zeros([size(P),5]);
+                            for s=1:subsamp
+                                temp_frames(:,:,s)=max(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames(s:subsamp:end)),[],3);
+                            end
+                            P=max(P,median(temp_frames,3));
+                            if toc>max_time/2
+                            disp(['Max time reached for channel ',num2str(a),'.']);
+                            disp(['Frames utilized: ',num2str(rep*subdiv)]);
+                            break;
+                            end
+                            imagesc(P');axis off;drawnow;
                         end
                     end
                     imagesc(P');axis off;
@@ -363,8 +424,10 @@ end
 
 function play_vid(hObject,event,tv)
 data=guidata(tv.figure);
+frame_rate=1./hObject.InstantPeriod;
+data.increment=max(floor(tv.fps/frame_rate),1);
 if data.CurrFrame~=tv.numFrames
-    data.CurrFrame=data.CurrFrame+1;
+    data.CurrFrame=data.CurrFrame+data.increment;
 else
     stop(hObject);
     return;
