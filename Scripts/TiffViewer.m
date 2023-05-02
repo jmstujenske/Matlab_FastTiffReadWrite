@@ -251,6 +251,7 @@ data.ROI_precalc.frame_size=size(ax.Children.CData');
 end
 data.ROI=drawpolygon(ax);
 set(tv.figure, 'pointer', 'watch');
+
 drawnow;
 pixels=inpolygon(data.ROI_precalc.x,data.ROI_precalc.y,data.ROI.Position(:,1),data.ROI.Position(:,2));
 pixel_mask=zeros(data.ROI_precalc.frame_size);
@@ -269,7 +270,8 @@ else
     z_series(b,:)=mean(tv.memmap_matrix_data(ins+(b-1)*numel(pixel_mask)+(0:tv.numFrames-1)*numel(pixel_mask)*tv.n_ch),1);
     end
 end
-figure;
+f_out=figure;
+set(f_out, 'pointer', 'watch');
 colors={'r','g'};
     for b=1:tv.n_ch
 plot(z_series(b,:),'-','Color',colors{b},'LineWidth',.5);
@@ -282,6 +284,7 @@ hold on;
     
     delete(data.ROI);
     set(tv.figure, 'pointer', 'arrow');
+    set(f_out, 'pointer', 'arrow');
 
 end
 
@@ -308,29 +311,38 @@ guidata(tv.figure,data);
     
 end
 function mm_proj(hObject,event,tv,type)
-figure;
+color_name={'Red','Green','Blue'};
+f_out=figure;
 max_time=tv.max_time;
     set(tv.figure, 'pointer', 'watch');
+    set(f_out, 'pointer', 'watch');
+
 drawnow;
-sub_handle_popup=zeros(1,tv.n_ch);
+            if tv.n_ch>1
+                n_subplots=tv.n_ch+1;
+            else
+                n_subplots=tv.n_ch;
+            end
+    sub_handle_popup=zeros(1,n_subplots);
 switch tv.map_type
     case 'mem'
         for a=1:tv.n_ch
             tic;
-            sub_handle_popup(a)=subplot(1,tv.n_ch,a);
-
+            sub_handle_popup(a)=subplot(1,n_subplots,a);
             switch type
                 case 'mean'
                     if isempty(tv.memmap_matrix_data)
-                    P=(double(tv.memmap_data(1).(['channel',num2str(a)])))/tv.numFrames;
+                    P{a}=(double(tv.memmap_data(1).(['channel',num2str(a)])))/tv.numFrames;
                     for b=2:length(tv.memmap_data)
-                        P=P+double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames;
+                        P{a}=P{a}+double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames;
                         if mod(b,1000)==0
-                            imagesc(P');axis off;drawnow;
+                            figure(f_out);subplot(1,n_subplots,a);
+
+                            imagesc(P{a}');axis off;colormap('gray');drawnow;
                         end
                         if toc>max_time/2
                             disp(['Max time reached for channel ',num2str(a),'.']);
-                            P=P*(tv.numFrames/b);
+                            P{a}=P{a}*(tv.numFrames/b);
                             disp(['Frames averaged: ',num2str(b)]);
 
                             break;
@@ -340,36 +352,39 @@ switch tv.map_type
                         [y_len,x_len]=size(tv.memmap_matrix_data,1:2);
                         subdiv=500;
                         n_subdiv=ceil(tv.numFrames/subdiv);
-                        P=zeros(y_len,x_len/tv.n_ch,'double');
+                        P{a}=zeros(y_len,x_len/tv.n_ch,'double');
                         tic;
                         for rep=1:n_subdiv
                             frames=1+(rep-1)*subdiv:min(subdiv*rep,tv.numFrames);
-                            P=P+sum(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames),3)/tv.numFrames;
+                            P{a}=P{a}+sum(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames),3)/tv.numFrames;
                             if toc>max_time/2
                             disp(['Max time reached for channel ',num2str(a),'.']);
-                            P=P*(tv.numFrames/(rep*subdiv));
+                            P{a}=P{a}*(tv.numFrames/(rep*subdiv));
                             disp(['Frames averaged: ',num2str(rep*subdiv)]);
                             break;
                             end
-                            imagesc(P');axis off;drawnow;
+                            figure(f_out);subplot(1,n_subplots,a);
+
+                            imagesc(P{a}');axis off;colormap('gray');drawnow;
                         end
                     end
-                    imagesc(P');axis off;
-
+                    
                 case 'max'
                     subsamp=5;
                     if isempty(tv.memmap_matrix_data)
-                    P=tv.memmap_data(1).(['channel',num2str(a)]);
-                    [n m]=size(P,1:2);
-                    P=zeros(size(P));
-                    temp_frames=zeros(n,m,subsamp,class(P));
+                    P{a}=tv.memmap_data(1).(['channel',num2str(a)]);
+                    [n m]=size(P{a},1:2);
+                    P{a}=zeros(size(P{a}));
+                    temp_frames=zeros(n,m,subsamp,class(P{a}));
                     for b=1:subsamp:length(tv.memmap_data)-subsamp+1;
                         for c=1:subsamp
                             temp_frames(:,:,c)=tv.memmap_data(b+(c-1)).(['channel',num2str(a)]);
                         end
-                        P=max(P,median(temp_frames,3));
+                        P{a}=max(P{a},median(temp_frames,3));
                         if mod(b,1000)<subsamp
-                            imagesc(P');axis off;drawnow;
+                            figure(f_out);subplot(1,n_subplots,a);
+
+                            imagesc(P{a}');axis off;colormap('gray');drawnow;
                         end
                         if toc>max_time/2
                             disp(['Max time reached for channel ',num2str(a),'.']);
@@ -381,33 +396,52 @@ switch tv.map_type
                         [y_len,x_len]=size(tv.memmap_matrix_data,1:2);
                         subdiv=500;
                         n_subdiv=ceil(tv.numFrames/subdiv);
-                        P=zeros(y_len,x_len/tv.n_ch,'double');
+                        P{a}=zeros(y_len,x_len/tv.n_ch,'double');
                         tic;
                         for rep=1:n_subdiv
                             frames=1+(rep-1)*subdiv:min(subdiv*rep,tv.numFrames);
-                            temp_frames=zeros([size(P),5]);
+                            temp_frames=zeros([size(P{a}),5]);
                             for s=1:subsamp
                                 temp_frames(:,:,s)=max(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames(s:subsamp:end)),[],3);
                             end
-                            P=max(P,median(temp_frames,3));
+                            P{a}=max(P{a},median(temp_frames,3));
                             if toc>max_time/2
                             disp(['Max time reached for channel ',num2str(a),'.']);
                             disp(['Frames utilized: ',num2str(rep*subdiv)]);
                             break;
                             end
-                            imagesc(P');axis off;drawnow;
+                            figure(f_out);subplot(1,n_subplots,a);
+
+                            imagesc(P{a}');axis off;colormap('gray');drawnow;
                         end
                     end
-                    imagesc(P');axis off;
+                    
 
             end
+            figure(f_out);subplot(1,n_subplots,a);
+            imagesc(P{a}');axis off;colormap('gray');
+            title(color_name{a});
+
         end
+        if tv.n_ch>1
+        sub_handle_popup(end)=subplot(1,n_subplots,n_subplots);
+        allimages=permute(cat(3,P{:}),[2 1 3]);
+        allimages=allimages./max(allimages,[],1:2);
+        if size(allimages,3)==2
+            allimages=cat(3,allimages,zeros(size(allimages,[2 1]),class(allimages)));
+        end
+        imagesc(allimages);axis off;
+        title('Merge');
+        end
+        disp('Projection Done.');
+        linkaxes(sub_handle_popup);
+        
     case 'file'
         warning('Could not memory map, so projection would take too long.');
 end
-disp('Projection Done.');
-linkaxes(sub_handle_popup);
 set(tv.figure, 'pointer', 'arrow');
+set(f_out, 'pointer', 'arrow');
+
 
 end
 

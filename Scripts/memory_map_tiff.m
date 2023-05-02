@@ -106,6 +106,11 @@ bd=info(1).BitsPerSample;
     if nargin<3 || isempty(n_ch)
     if isfield(info,'ImageDescription')
     n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
+    startind=strfind(info(1).ImageDescription,'images=')+7;
+    notnumbers=find(~ismember(uint8(info(1).ImageDescription,49:57)));
+    endind=min(notnumbers(notnumbers>startind))-1;
+    numFrames=str2double(char(info(1).ImageDescription(startind:endind));
+
     else
         n_ch=[];
     end
