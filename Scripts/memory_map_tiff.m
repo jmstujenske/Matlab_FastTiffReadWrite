@@ -104,13 +104,16 @@ bd=info(1).BitsPerSample;
         error('Size Tags not recognized.')
     end
     if nargin<3 || isempty(n_ch)
-    if isfield(info,'ImageDescription')
+    if isfield(info,'ImageDescription') %%imagej tiff
+        try
     n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
     startind=strfind(info(1).ImageDescription,'images=')+7;
-    notnumbers=find(~ismember(uint8(info(1).ImageDescription,49:57)));
+    notnumbers=find(~ismember(uint8(info(1).ImageDescription),48:57));
     endind=min(notnumbers(notnumbers>startind))-1;
-    numFrames=str2double(char(info(1).ImageDescription(startind:endind));
-
+    numFrames=str2double(char(info(1).ImageDescription(startind:endind)))*n_ch;
+        catch
+            n_ch=[];
+        end
     else
         n_ch=[];
     end

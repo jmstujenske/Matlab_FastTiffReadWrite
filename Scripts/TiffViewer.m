@@ -214,6 +214,9 @@ classdef TiffViewer < handle
             end
             guidata(obj.figure,data);
         end
+        function allimages=mm_proj(obj,type)
+            allimages=mm_proj([],[],obj,type);
+        end
     end
 end
 
@@ -310,7 +313,7 @@ tv.fps=str2double(answer{1});
 guidata(tv.figure,data);
     
 end
-function mm_proj(hObject,event,tv,type)
+function allimages=mm_proj(~,~,tv,type)
 color_name={'Red','Green','Blue'};
 f_out=figure;
 max_time=tv.max_time;
@@ -432,6 +435,8 @@ switch tv.map_type
         end
         imagesc(allimages);axis off;
         title('Merge');
+        else
+            allimages=P{1};
         end
         disp('Projection Done.');
         linkaxes(sub_handle_popup);
