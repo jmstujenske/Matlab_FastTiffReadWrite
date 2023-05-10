@@ -327,6 +327,7 @@ drawnow;
                 n_subplots=tv.n_ch;
             end
     sub_handle_popup=zeros(1,n_subplots);
+    P=cell(1,tv.n_ch);
 switch tv.map_type
     case 'mem'
         for a=1:tv.n_ch
@@ -337,7 +338,7 @@ switch tv.map_type
                     if isempty(tv.memmap_matrix_data)
                     P{a}=(double(tv.memmap_data(1).(['channel',num2str(a)])))/tv.numFrames;
                     for b=2:length(tv.memmap_data)
-                        P{a}=P{a}+double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames;
+                        P{a}=imadd(P{a},double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames);
                         if mod(b,1000)==0
                             figure(f_out);subplot(1,n_subplots,a);
 
@@ -359,7 +360,7 @@ switch tv.map_type
                         tic;
                         for rep=1:n_subdiv
                             frames=1+(rep-1)*subdiv:min(subdiv*rep,tv.numFrames);
-                            P{a}=P{a}+sum(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames),3)/tv.numFrames;
+                            P{a}=imadd(P{a},sum(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames),3)/tv.numFrames);
                             if toc>max_time/2
                             disp(['Max time reached for channel ',num2str(a),'.']);
                             P{a}=P{a}*(tv.numFrames/(rep*subdiv));
