@@ -48,65 +48,63 @@ classdef TiffViewer < handle
             if nargin<1 || isempty(filename)
                 filename=uigetfile({'*.tif;*.tiff'});
                 if isempty(n_ch)
-                        userinputs=inputdlg({'Number of channels:'});
-                        n_ch=str2double(userinputs{1});
+                    userinputs=inputdlg({'Number of channels:'});
+                    n_ch=str2double(userinputs{1});
                 end
             end
             if ischar(filename)
-            [folder,file,ext]=fileparts(filename);
-            if strcmp(ext,'.tif') || strcmp(ext,'.tiff')
-            info = readtifftags(filename);
-            offset_field=get_offset_field(info);
+                [folder,file,ext]=fileparts(filename);
+                if strcmp(ext,'.tif') || strcmp(ext,'.tiff')
+                    info = readtifftags(filename);
+                    offset_field=get_offset_field(info);
 
-            if length(info)>3
-                if info(2).(offset_field)(1)-info(1).(offset_field)(1)==info(3).(offset_field)(1)-info(2).(offset_field)(1)
-                    uneven_flag=0;
+                    if length(info)>3
+                        if info(2).(offset_field)(1)-info(1).(offset_field)(1)==info(3).(offset_field)(1)-info(2).(offset_field)(1)
+                            uneven_flag=0;
+                        else
+                            uneven_flag=1;
+                        end
+                    else
+                        uneven_flag=0;
+                        %                 warning('File cannot be memory mapped. Will read frames from file, which will be slow.');
+                    end
                 else
-                    uneven_flag=1;
+                    uneven_flag=0;
                 end
-            else
-                uneven_flag=0;
-%                 warning('File cannot be memory mapped. Will read frames from file, which will be slow.');
-            end
-            else
-                uneven_flag=0;
-            end
-            if ~uneven_flag || strcmp(ext,'.bin')
-                obj.map_type='mem';
-                
-                switch ext
-                    case {'.tif','.tiff'}
-                        obj.memmap = memory_map_tiff(filename,[],n_ch,true);
-                        if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
-                        obj.memmap_matrix = memory_map_tiff(filename,'matrix',n_ch,true);
-                        obj.memmap_matrix_data = obj.memmap_matrix.Data.allchans;
-                        end
-                        width=info(1).ImageWidth;
-                        height=info(1).ImageHeight;
-                    case '.bin'
-                        userinputs=inputdlg({'Specify frame size as a matrix:','Number of channels:','data format:'});
-                        framesize=eval(userinputs{1});
-                        n_ch=str2double(userinputs{2});
-                        form=userinputs{3};
+                if ~uneven_flag || strcmp(ext,'.bin')
+                    obj.map_type='mem';
 
-                        
-                        count=0;
-                        for ch_rep=1:n_ch
-                            count=count+1;
-                            format_string(count,:)={form,framesize,['channel',num2str(ch_rep)]};
-                        end
-                        obj.memmap = memmapfile(filename, 'Format',format_string,'Writable',false);
-                                    width=framesize(2);
-                        height=framesize(1);
-                    otherwise
-                        error('File extension not recognized');
+                    switch ext
+                        case {'.tif','.tiff'}
+                            obj.memmap = memory_map_tiff(filename,[],n_ch,true);
+                            if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
+                                obj.memmap_matrix = memory_map_tiff(filename,'matrix',n_ch,true);
+                                obj.memmap_matrix_data = obj.memmap_matrix.Data.allchans;
+                            end
+                            width=info(1).ImageWidth;
+                            height=info(1).ImageHeight;
+                        case '.bin'
+                            userinputs=inputdlg({'Specify frame size as a matrix:','Number of channels:','data format:'});
+                            framesize=eval(userinputs{1});
+                            n_ch=str2double(userinputs{2});
+                            form=userinputs{3};
+                            count=0;
+                            for ch_rep=1:n_ch
+                                count=count+1;
+                                format_string(count,:)={form,framesize,['channel',num2str(ch_rep)]};
+                            end
+                            obj.memmap = memmapfile(filename, 'Format',format_string,'Writable',false);
+                            width=framesize(2);
+                            height=framesize(1);
+                        otherwise
+                            error('File extension not recognized');
+                    end
+                    obj.memmap_data=obj.memmap.Data;
+                else
+                    obj.map_type='file';
+                    obj.memmap = set_up_file(filename,info,n_ch);
+                    obj.memmap_data = 1;
                 end
-                obj.memmap_data=obj.memmap.Data;
-            else
-                obj.map_type='file';
-                obj.memmap = set_up_file(filename,info,n_ch);
-                obj.memmap_data = 1;
-            end
             elseif isnumeric(filename)
                 if isempty(n_ch)
                     n_ch=1;
@@ -120,7 +118,7 @@ classdef TiffViewer < handle
                     data=cat(2,data,squeeze((mat2cell(filename(:,:,ch_rep:n_ch:end),height,width,ones(size(filename,3)/n_ch,1)))));
                     ch_names(ch_rep)={['channel',num2str(ch_rep)]};
                 end
-                    obj.memmap_data=cell2struct(data,ch_names,2)';
+                obj.memmap_data=cell2struct(data,ch_names,2)';
                 obj.map_type='mem';
             else
                 error('Input type not recognized.')
@@ -130,13 +128,13 @@ classdef TiffViewer < handle
             switch obj.map_type
                 case 'mem'
                     if exist('info','var')
-                    if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
-                        obj.n_ch=length(fieldnames(obj.memmap_data));
-                    elseif length(info)>2
-                        obj.n_ch=length(fieldnames(obj.memmap_data))/2;
-                    else
-                        obj.n_ch=length(fieldnames(obj.memmap_data));
-                    end
+                        if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
+                            obj.n_ch=length(fieldnames(obj.memmap_data));
+                        elseif length(info)>2
+                            obj.n_ch=length(fieldnames(obj.memmap_data))/2;
+                        else
+                            obj.n_ch=length(fieldnames(obj.memmap_data));
+                        end
                     else
                         obj.n_ch=n_ch;
                     end
@@ -158,21 +156,21 @@ classdef TiffViewer < handle
             guidata(obj.figure,data);
             disp_frame(obj,[],1);
             maxval=0;
-                        switch obj.map_type
+            switch obj.map_type
                 case 'mem'
                     for a=1:obj.n_ch
-                    maxval=max(maxval,max(obj.memmap_data(data.CurrFrame).(['channel',num2str(a)]),[],'all'));
+                        maxval=max(maxval,max(obj.memmap_data(data.CurrFrame).(['channel',num2str(a)]),[],'all'));
                     end
-                            case 'file'
-                                for a=1:obj.n_ch
-                                obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
-                                fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
-                                data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
-                                data=reshape(data,obj.memmap.frame_size)';
-                                maxval=max(maxval,max(data,[],'all'));
-                                end
-                        end
-                        set(obj.ax{a},'CLim',[0 maxval]);
+                case 'file'
+                    for a=1:obj.n_ch
+                        obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
+                        fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
+                        data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
+                        data=reshape(data,obj.memmap.frame_size)';
+                        maxval=max(maxval,max(data,[],'all'));
+                    end
+            end
+            set(obj.ax{a},'CLim',[0 maxval]);
         end
 
         function disp_frame(obj,frame,opt)
@@ -191,8 +189,8 @@ classdef TiffViewer < handle
                 switch obj.map_type
                     case 'mem'
                         if opt==0
-                        set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
-%                         set(obj.ax{a},'XTick',[],'YTick',[])
+                            set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
+                            %                         set(obj.ax{a},'XTick',[],'YTick',[])
                         else
                             imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
                             set(obj.ax{a},'XTick',[],'YTick',[])
@@ -205,7 +203,7 @@ classdef TiffViewer < handle
                         data=reshape(data,obj.memmap.frame_size)';
                         if opt==0
                             set(obj.ax{a}.Children,'CData',data');
-%                         set(obj.ax{a},'XTick',[],'YTick',[])
+                            %                         set(obj.ax{a},'XTick',[],'YTick',[])
                         else
                             imagesc(obj.ax{a},data');
                             set(obj.ax{a},'XTick',[],'YTick',[])
@@ -247,10 +245,10 @@ disp_frame(tv);
 end
 function ROI_select(hOject,event,tv)
 data=guidata(tv.figure);
-    ax=gca;
+ax=gca;
 if ~isfield(data,'ROI_precalc')
-data.ROI_precalc.frame_size=size(ax.Children.CData');
-[data.ROI_precalc.x,data.ROI_precalc.y]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
+    data.ROI_precalc.frame_size=size(ax.Children.CData');
+    [data.ROI_precalc.x,data.ROI_precalc.y]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
 end
 data.ROI=drawpolygon(ax);
 set(tv.figure, 'pointer', 'watch');
@@ -269,25 +267,25 @@ if isempty(tv.memmap_matrix_data)
     end
 else
     for b=1:tv.n_ch
-    ins=find(pixel_mask(:));
-    z_series(b,:)=mean(tv.memmap_matrix_data(ins+(b-1)*numel(pixel_mask)+(0:tv.numFrames-1)*numel(pixel_mask)*tv.n_ch),1);
+        ins=find(pixel_mask(:));
+        z_series(b,:)=mean(tv.memmap_matrix_data(ins+(b-1)*numel(pixel_mask)+(0:tv.numFrames-1)*numel(pixel_mask)*tv.n_ch),1);
     end
 end
 f_out=figure;
 set(f_out, 'pointer', 'watch');
 colors={'r','g'};
-    for b=1:tv.n_ch
-plot(z_series(b,:),'-','Color',colors{b},'LineWidth',.5);
-hold on;
-plot(movmean(z_series(b,:),5),'k-','LineWidth',2);
-hold on;
-    end
-    xlim([1 tv.numFrames]);
-    box off;set(gca,'TickDir','out');
-    
-    delete(data.ROI);
-    set(tv.figure, 'pointer', 'arrow');
-    set(f_out, 'pointer', 'arrow');
+for b=1:tv.n_ch
+    plot(z_series(b,:),'-','Color',colors{b},'LineWidth',.5);
+    hold on;
+    plot(movmean(z_series(b,:),5),'k-','LineWidth',2);
+    hold on;
+end
+xlim([1 tv.numFrames]);
+box off;set(gca,'TickDir','out');
+
+delete(data.ROI);
+set(tv.figure, 'pointer', 'arrow');
+set(f_out, 'pointer', 'arrow');
 
 end
 
@@ -311,23 +309,23 @@ data=guidata(tv.figure);
 answer=inputdlg('Input FPS for Video Playback');
 tv.fps=str2double(answer{1});
 guidata(tv.figure,data);
-    
+
 end
 function allimages=mm_proj(~,~,tv,type)
 color_name={'Red','Green','Blue'};
 f_out=figure;
 max_time=tv.max_time;
-    set(tv.figure, 'pointer', 'watch');
-    set(f_out, 'pointer', 'watch');
+set(tv.figure, 'pointer', 'watch');
+set(f_out, 'pointer', 'watch');
 
 drawnow;
-            if tv.n_ch>1
-                n_subplots=tv.n_ch+1;
-            else
-                n_subplots=tv.n_ch;
-            end
-    sub_handle_popup=zeros(1,n_subplots);
-    P=cell(1,tv.n_ch);
+if tv.n_ch>1
+    n_subplots=tv.n_ch+1;
+else
+    n_subplots=tv.n_ch;
+end
+sub_handle_popup=zeros(1,n_subplots);
+P=cell(1,tv.n_ch);
 switch tv.map_type
     case 'mem'
         for a=1:tv.n_ch
@@ -336,22 +334,22 @@ switch tv.map_type
             switch type
                 case 'mean'
                     if isempty(tv.memmap_matrix_data)
-                    P{a}=(double(tv.memmap_data(1).(['channel',num2str(a)])))/tv.numFrames;
-                    for b=2:length(tv.memmap_data)
-                        P{a}=imadd(P{a},double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames);
-                        if mod(b,1000)==0
-                            figure(f_out);subplot(1,n_subplots,a);
+                        P{a}=(double(tv.memmap_data(1).(['channel',num2str(a)])))/tv.numFrames;
+                        for b=2:length(tv.memmap_data)
+                            P{a}=imadd(P{a},double(tv.memmap_data(b).(['channel',num2str(a)]))/tv.numFrames);
+                            if mod(b,1000)==0
+                                figure(f_out);subplot(1,n_subplots,a);
 
-                            imagesc(P{a}');axis off;colormap('gray');drawnow;
-                        end
-                        if toc>max_time/2
-                            disp(['Max time reached for channel ',num2str(a),'.']);
-                            P{a}=P{a}*(tv.numFrames/b);
-                            disp(['Frames averaged: ',num2str(b)]);
+                                imagesc(P{a}');axis off;colormap('gray');drawnow;
+                            end
+                            if toc>max_time/2
+                                disp(['Max time reached for channel ',num2str(a),'.']);
+                                P{a}=P{a}*(tv.numFrames/b);
+                                disp(['Frames averaged: ',num2str(b)]);
 
-                            break;
+                                break;
+                            end
                         end
-                    end
                     else
                         [y_len,x_len]=size(tv.memmap_matrix_data,1:2);
                         subdiv=500;
@@ -362,40 +360,40 @@ switch tv.map_type
                             frames=1+(rep-1)*subdiv:min(subdiv*rep,tv.numFrames);
                             P{a}=imadd(P{a},sum(tv.memmap_matrix_data(:,(1:x_len/tv.n_ch)+(a-1)*x_len/tv.n_ch,frames),3)/tv.numFrames);
                             if toc>max_time/2
-                            disp(['Max time reached for channel ',num2str(a),'.']);
-                            P{a}=P{a}*(tv.numFrames/(rep*subdiv));
-                            disp(['Frames averaged: ',num2str(rep*subdiv)]);
-                            break;
+                                disp(['Max time reached for channel ',num2str(a),'.']);
+                                P{a}=P{a}*(tv.numFrames/(rep*subdiv));
+                                disp(['Frames averaged: ',num2str(rep*subdiv)]);
+                                break;
                             end
                             figure(f_out);subplot(1,n_subplots,a);
 
                             imagesc(P{a}');axis off;colormap('gray');drawnow;
                         end
                     end
-                    
+
                 case 'max'
                     subsamp=5;
                     if isempty(tv.memmap_matrix_data)
-                    P{a}=tv.memmap_data(1).(['channel',num2str(a)]);
-                    [n m]=size(P{a},1:2);
-                    P{a}=zeros(size(P{a}));
-                    temp_frames=zeros(n,m,subsamp,class(P{a}));
-                    for b=1:subsamp:length(tv.memmap_data)-subsamp+1;
-                        for c=1:subsamp
-                            temp_frames(:,:,c)=tv.memmap_data(b+(c-1)).(['channel',num2str(a)]);
-                        end
-                        P{a}=max(P{a},median(temp_frames,3));
-                        if mod(b,1000)<subsamp
-                            figure(f_out);subplot(1,n_subplots,a);
+                        P{a}=tv.memmap_data(1).(['channel',num2str(a)]);
+                        [n m]=size(P{a},1:2);
+                        P{a}=zeros(size(P{a}));
+                        temp_frames=zeros(n,m,subsamp,class(P{a}));
+                        for b=1:subsamp:length(tv.memmap_data)-subsamp+1;
+                            for c=1:subsamp
+                                temp_frames(:,:,c)=tv.memmap_data(b+(c-1)).(['channel',num2str(a)]);
+                            end
+                            P{a}=max(P{a},median(temp_frames,3));
+                            if mod(b,1000)<subsamp
+                                figure(f_out);subplot(1,n_subplots,a);
 
-                            imagesc(P{a}');axis off;colormap('gray');drawnow;
+                                imagesc(P{a}');axis off;colormap('gray');drawnow;
+                            end
+                            if toc>max_time/2
+                                disp(['Max time reached for channel ',num2str(a),'.']);
+                                disp(['Frames utilized: ',num2str(b)]);
+                                break;
+                            end
                         end
-                        if toc>max_time/2
-                            disp(['Max time reached for channel ',num2str(a),'.']);
-                            disp(['Frames utilized: ',num2str(b)]);
-                            break;
-                        end
-                    end
                     else
                         [y_len,x_len]=size(tv.memmap_matrix_data,1:2);
                         subdiv=500;
@@ -410,16 +408,16 @@ switch tv.map_type
                             end
                             P{a}=max(P{a},median(temp_frames,3));
                             if toc>max_time/2
-                            disp(['Max time reached for channel ',num2str(a),'.']);
-                            disp(['Frames utilized: ',num2str(rep*subdiv)]);
-                            break;
+                                disp(['Max time reached for channel ',num2str(a),'.']);
+                                disp(['Frames utilized: ',num2str(rep*subdiv)]);
+                                break;
                             end
                             figure(f_out);subplot(1,n_subplots,a);
 
                             imagesc(P{a}');axis off;colormap('gray');drawnow;
                         end
                     end
-                    
+
 
             end
             figure(f_out);subplot(1,n_subplots,a);
@@ -428,20 +426,20 @@ switch tv.map_type
 
         end
         if tv.n_ch>1
-        sub_handle_popup(end)=subplot(1,n_subplots,n_subplots);
-        allimages=permute(cat(3,P{:}),[2 1 3]);
-        allimages=allimages./max(allimages,[],1:2);
-        if size(allimages,3)==2
-            allimages=cat(3,allimages,zeros(size(allimages,[2 1]),class(allimages)));
-        end
-        imagesc(allimages);axis off;
-        title('Merge');
+            sub_handle_popup(end)=subplot(1,n_subplots,n_subplots);
+            allimages=permute(cat(3,P{:}),[2 1 3]);
+            allimages=allimages./max(allimages,[],1:2);
+            if size(allimages,3)==2
+                allimages=cat(3,allimages,zeros(size(allimages,[2 1]),class(allimages)));
+            end
+            imagesc(allimages);axis off;
+            title('Merge');
         else
             allimages=P{1};
         end
         disp('Projection Done.');
         linkaxes(sub_handle_popup);
-        
+
     case 'file'
         warning('Could not memory map, so projection would take too long.');
 end
@@ -457,11 +455,11 @@ if data.CurrFrame==tv.numFrames
     data.CurrFrame=1;
 end
 guidata(tv.figure,data);
-    set(data.timer,'Period',max(round(1/tv.fps,3),.001),'TimerFcn',{@play_vid,tv});
-    start(data.timer);
-    guidata(tv.figure,data);
-    set(hObject,'callback',@(x,evt) stop_but_down(x,evt,tv));
-    set(hObject,'String','=');
+set(data.timer,'Period',max(round(1/tv.fps,3),.001),'TimerFcn',{@play_vid,tv});
+start(data.timer);
+guidata(tv.figure,data);
+set(hObject,'callback',@(x,evt) stop_but_down(x,evt,tv));
+set(hObject,'String','=');
 end
 
 function play_vid(hObject,event,tv)
