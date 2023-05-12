@@ -302,8 +302,8 @@ catch
     return;
 end
 set(data.h.slide,'Value',data.CurrFrame);
-disp_frame(tv);
 guidata(tv.figure,data);
+disp_frame(tv);
 end
 
 function fps_but_down(hObject,event,tv)
@@ -453,13 +453,15 @@ end
 
 function play_but_down(hObject,event,tv)
 data=guidata(tv.figure);
-if data.CurrFrame~=tv.numFrames
+if data.CurrFrame==tv.numFrames
+    data.CurrFrame=1;
+end
+guidata(tv.figure,data);
     set(data.timer,'Period',max(round(1/tv.fps,3),.001),'TimerFcn',{@play_vid,tv});
     start(data.timer);
     guidata(tv.figure,data);
     set(hObject,'callback',@(x,evt) stop_but_down(x,evt,tv));
     set(hObject,'String','=');
-end
 end
 
 function play_vid(hObject,event,tv)
