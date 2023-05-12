@@ -146,9 +146,9 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
     if (num2read+sframe<= numFrames+1)
         lastframe=num2read+sframe-1;
     else
-        num2read=numFrames-sframe+1;%currently this definition is not necessary, but want to forestall potential future issues by defining this correctly
+        num2read=numFrames-sframe+1;
         lastframe=numFrames;
-        disp('Hmmm...just reading from starting frame until the end');
+        disp('More frames requested than exist. Reading to end of the file.');
     end
     bd=info(1).BitDepth;
     bo=strcmp(info(1).ByteOrder,'big-endian');
