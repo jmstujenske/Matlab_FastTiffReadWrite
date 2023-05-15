@@ -124,7 +124,7 @@ classdef TiffViewer < handle
                 error('Input type not recognized.')
             end
             scaleval=.6;
-            obj.figure=figure('Units','normalized','Position',[.1 .1 scaleval scaleval],'AutoResizeChildren','off','CloseRequestFcn',@(x,event) closefcn(x,event,obj));
+            obj.figure=figure('Units','normalized','Position',[.1 .1 scaleval scaleval],'AutoResizeChildren','off','CloseRequestFcn',@(x,event) closefcn(x,event,obj),'Name',[file,ext],'NumberTitle','off');
             switch obj.map_type
                 case 'mem'
                     if exist('info','var')
