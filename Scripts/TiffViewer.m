@@ -33,6 +33,7 @@ classdef TiffViewer < handle
         fps
         map_type
         max_time=20;
+        type
     end
     properties(Hidden = true)
         ax
@@ -94,6 +95,9 @@ classdef TiffViewer < handle
                                 format_string(count,:)={form,framesize,['channel',num2str(ch_rep)]};
                             end
                             obj.memmap = memmapfile(filename, 'Format',format_string,'Writable',false);
+                            obj.memmap_matrix = memmapfile(filename,'Format',{form,[framesize length(obj.memmap.Data)],'allchans'},'Writable',false);
+                            obj.memmap_matrix_data = obj.memmap_matrix.Data.allchans;
+                            obj.type='binary';
                             width=framesize(2);
                             height=framesize(1);
                         otherwise
@@ -120,6 +124,8 @@ classdef TiffViewer < handle
                 end
                 obj.memmap_data=cell2struct(data,ch_names,2)';
                 obj.map_type='mem';
+                file='matrix';
+                ext=[];
             else
                 error('Input type not recognized.')
             end
@@ -189,10 +195,20 @@ classdef TiffViewer < handle
                 switch obj.map_type
                     case 'mem'
                         if opt==0
+                            if strcmp(obj.type,'binary')
+                                set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)]));
+                            else
                             set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
+                            end
                             %                         set(obj.ax{a},'XTick',[],'YTick',[])
                         else
-                            imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
+                            if strcmp(obj.type,'binary')
+                                                            imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)]));
+
+                            else
+                                                            imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
+
+                            end
                             set(obj.ax{a},'XTick',[],'YTick',[])
                             colormap('gray');
                         end
@@ -247,8 +263,15 @@ function ROI_select(hOject,event,tv)
 data=guidata(tv.figure);
 ax=gca;
 if ~isfield(data,'ROI_precalc')
-    data.ROI_precalc.frame_size=size(ax.Children.CData');
-    [data.ROI_precalc.x,data.ROI_precalc.y]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
+    if strcmp(tv.type,'binary')
+         data.ROI_precalc.frame_size=size(ax.Children.CData);
+             [data.ROI_precalc.y,data.ROI_precalc.x]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
+
+    else
+        data.ROI_precalc.frame_size=size(ax.Children.CData');
+            [data.ROI_precalc.x,data.ROI_precalc.y]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
+
+    end
 end
 data.ROI=drawpolygon(ax);
 set(tv.figure, 'pointer', 'watch');
@@ -366,8 +389,11 @@ switch tv.map_type
                                 break;
                             end
                             figure(f_out);subplot(1,n_subplots,a);
-
+                            if strcmp(obj.type,'binary')
+                                imagesc(P{a});axis off;colormap('gray');drawnow;
+                            else
                             imagesc(P{a}');axis off;colormap('gray');drawnow;
+                            end
                         end
                     end
 
@@ -414,20 +440,33 @@ switch tv.map_type
                             end
                             figure(f_out);subplot(1,n_subplots,a);
 
+                                                        if strcmp(obj.type,'binary')
+                                imagesc(P{a});axis off;colormap('gray');drawnow;
+                            else
                             imagesc(P{a}');axis off;colormap('gray');drawnow;
+                            end
                         end
                     end
 
 
             end
             figure(f_out);subplot(1,n_subplots,a);
-            imagesc(P{a}');axis off;colormap('gray');
+                                        if strcmp(obj.type,'binary')
+                                imagesc(P{a});axis off;colormap('gray');drawnow;
+                            else
+                            imagesc(P{a}');axis off;colormap('gray');drawnow;
+                            end
             title(color_name{a});
 
         end
         if tv.n_ch>1
             sub_handle_popup(end)=subplot(1,n_subplots,n_subplots);
-            allimages=permute(cat(3,P{:}),[2 1 3]);
+                                        if strcmp(obj.type,'binary')
+allimages=cat(3,P{:});                            
+                                        else
+                            allimages=permute(cat(3,P{:}),[2 1 3]);
+                            end
+            
             allimages=allimages./max(allimages,[],1:2);
             if size(allimages,3)==2
                 allimages=cat(3,allimages,zeros(size(allimages,[2 1]),class(allimages)));
@@ -435,7 +474,7 @@ switch tv.map_type
             imagesc(allimages);axis off;
             title('Merge');
         else
-            allimages=P{1};
+            allimages=P{1}';
         end
         disp('Projection Done.');
         linkaxes(sub_handle_popup);
