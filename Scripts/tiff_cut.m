@@ -88,8 +88,10 @@ ins=start_frames(block_rep):end_frames(block_rep);
         data=m.Data.allchans(:,:,ins);
     else
 channel_in=[];
+count=0;
 for ch_in=which_ch(:)'
-channel_in=cat(2,channel_in,(1:h)+h*(which_ch(ch_in)-1));
+    count=count+1;
+channel_in=cat(2,channel_in,(1:h)+h*(which_ch(count)-1));
 end
 channel_in=sort(channel_in);
         data=m.Data.allchans(:,channel_in,ins);

@@ -389,7 +389,7 @@ switch tv.map_type
                                 break;
                             end
                             figure(f_out);subplot(1,n_subplots,a);
-                            if strcmp(obj.type,'binary')
+                            if strcmp(tv.type,'binary')
                                 imagesc(P{a});axis off;colormap('gray');drawnow;
                             else
                             imagesc(P{a}');axis off;colormap('gray');drawnow;
@@ -440,7 +440,7 @@ switch tv.map_type
                             end
                             figure(f_out);subplot(1,n_subplots,a);
 
-                                                        if strcmp(obj.type,'binary')
+                                                        if strcmp(tv.type,'binary')
                                 imagesc(P{a});axis off;colormap('gray');drawnow;
                             else
                             imagesc(P{a}');axis off;colormap('gray');drawnow;
@@ -451,7 +451,7 @@ switch tv.map_type
 
             end
             figure(f_out);subplot(1,n_subplots,a);
-                                        if strcmp(obj.type,'binary')
+                                        if strcmp(tv.type,'binary')
                                 imagesc(P{a});axis off;colormap('gray');drawnow;
                             else
                             imagesc(P{a}');axis off;colormap('gray');drawnow;
@@ -461,7 +461,7 @@ switch tv.map_type
         end
         if tv.n_ch>1
             sub_handle_popup(end)=subplot(1,n_subplots,n_subplots);
-                                        if strcmp(obj.type,'binary')
+                                        if strcmp(tv.type,'binary')
 allimages=cat(3,P{:});                            
                                         else
                             allimages=permute(cat(3,P{:}),[2 1 3]);
@@ -531,6 +531,13 @@ function closefcn(obj,event,tv)
 data=guidata(tv.figure);
 delete(tv.listener)
 stop(data.timer);
+if isstruct(tv.memmap) && isfield(tv.memmap,'fid')
+    fclose(tv.memmap.fid);
+end
+tv.memmap_data=[];
+tv.memmap_matrix_data=[];
+tv.memmap=[];
+tv.memmap_matrix=[];
 delete(obj);
 delete(tv);
 end
