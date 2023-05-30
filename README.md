@@ -1,9 +1,18 @@
-# Matlab_FastTiffReadWrite
-Functions to read tiffs and write tiffs quickly in matlab
- 
-Includes a TiffViewer that can quickly visualize a large stack and the ability to use tiffs are memory mapped files
+## Matlab_FastTiffReadWrite
+Solution for dealing with large image stacks acquired for two photon calcium imaging. This is implemented in Matlab, and it includes great scripts for reading and writing uncompressed tiff files of all sizes.
+Use bigread4 for (relatively) quick reading and writing of tiff files into Matlab memory. Use FastTiffSave to save data from Matlab into a tiff stack quickly.
+Then, use memory_map_tiff to read and write tiff files WITHOUT needing to hold the data in Matlab memory. This is *FAST*. You can load and manipulate a large file in *seconds*.
+The TiffViewer allows for easily going through large TiffStacks, bin files, or matrices. It supports up to two colors and can get ROI time traces, mean images, and maximum projection images.
+This loads things as fast as an ImageJ virtual stack, but with *MUCH FASTER* calculations.
 
-J.M. Stujenske
+![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/Media/TiffViewer_scroll.gif)
+
+Easily scrolled through a 512x512x250,000 frame file. Loaded in seconds and get time traces from custom drawn ROIs. 
+
+![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/Media/TiffViewer_ROI.png)
+
+
+##Further Information
 
 # 1. Read / Write Functions:
  
@@ -15,7 +24,6 @@ Example usage:
 imData=bigread4('C:\Users\Admin\Desktop\test.tif');
 FastTiffSave(imData,'C:\Users\Admin\Desktop\test_copy.tif');
 
-
 # 2. Memory mapping function:
 
 memory_map_tiff -- memory map a tiff, to read quickly, like you could for a binary file
@@ -23,17 +31,24 @@ memory_map_tiff -- memory map a tiff, to read quickly, like you could for a bina
 
 Example usage:
 
-m = memory_map_tiff('test.tif',[],2);
 
+_Example 1_
+
+m = memory_map_tiff('test.tif',[],2);
 channel1_frame1=m.Data(1).channel1;
 
-m = memory_map_tiff('test.tif','matrix',2);
+_Example 2_
 
-info = readtifftags;
+_Step 1: memory map the tif and get a projection_
 
-tiff_height=info(1).ImageHeight;
+m = memory_map_tiff('test.tif','matrix',2); #Note, the matrix data has the dimensions 1 and 2 swapped compared to image display due to how Tiff files are written.
+mean_proj_twochannels=permute(mean(m.Data.allchans,3),[2 1 3]); #Mean Projection
 
-allchannel1data=m.Data.allchans(:,1:tiff_height,:);
+_Step 2: extract the first channel from the memory mapped file and load into Matlab memory_
+
+info = readtifftags; #Load tiff tags, quickly
+tiff_height=info(1).ImageHeight; 
+allchannel1data=m.Data.allchans(:,1:tiff_height,:); 
 
 
 # 3. Visualizing tiffs:
@@ -42,23 +57,19 @@ TiffViewer -- object class for viewing tiffs (like in ImageJ but much faster, im
 
 example usage:
 
-tv=TiffViewer('test.tif'); %Figure will pop up to visual the tiff
+tv=TiffViewer('test.tif'); %Figure will pop up to visualize the tiff
 
-%Note, that this functions best if the tiff can be memory map-able as a structure (true of most tiffs).
+%Note, that this functions best if the tiff can be memory map-able as a structure (true of most tiffs written by other software and true of all tiffs written by FastTiffSave).
 
 
 
-# Explanation:
+# Credits:
 
-Reading based on script by D. Peterka (modified by E. Pnevmatikakis, currently utilized in CaImAn package and others)
+Reading based on bigread2 script by D. Peterka (modified by E. Pnevmatikakis, currently utilized in CaImAn package and others)
 
 
 Writing based on solution by R. Harkes:
 https://github.com/rharkes/Fast_Tiff_Write
-
-
-This should give ImageJ speeds for tiff reading and writing, if not quicker.
-
 
 Memory mapping uses innate Matlab functionality, and TiffViewer is custom written code built around memory mapping.
 
@@ -73,17 +84,16 @@ Writing speed will NOT be strictly linear with file size. The writing slows down
 
 Rough benchmarks (will depend on your hardware. SSD highly recommended):
 
-512x512x50000 uint16 tiff stack should read in about 2 minutes. Speed up is about 20% faster than bigread2.
-(If tifftags are unevenly spaced as done by functions like saveastiff, may be slower and the same speed as bigread2).
+512x512x50000 uint16 tiff stack should read in to Matlab memory in about 2 minutes with bigread4. Speed up is about 20% faster than bigread2.
+(If tifftags are unevenly spaced as done by functions like saveastiff, may be the same speed as bigread2).
 
 The same data should write to disk in about 2.5 minutes.
 
-Reading and writing should only be slightly slower than for binary files.
+Reading and writing should be negligibly slower than for binary files, but with image data parameters saved.
 If tiff files are saved with FastTiffSave, they can be memory mapped in Matlab using the memory_map_tiff.m function!
 
 TiffViewer should be able to open the above tiff stack in about 5 seconds.
 
-If RAM on your device is too low to hold all image data in memory at the same time, you can load in chunks and directly use the
+If RAM on your device is too low to hold all image data in memory at the same time and you want to write a tiff file, you can loop through holding chunks of the data in memory and directly use the
 Fast_BigTiff_Write class to write in a loop. Look in the FastTiffSave code for how to use the class.
 
-All questions and comments to jms7008@med.cornell.edu
