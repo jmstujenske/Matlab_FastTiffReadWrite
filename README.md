@@ -13,7 +13,7 @@ Then, quickly get time traces from custom drawn ROIs.
 This is implemented in Matlab, and it includes great scripts for reading and writing uncompressed tiff files of all sizes.
 Use **bigread4** for (relatively) quick reading and writing of tiff files into Matlab memory. Use **FastTiffSave** to save data from Matlab into a tiff stack quickly.
 Then, use **memory_map_tiff** to read and write tiff files WITHOUT needing to hold the data in Matlab memory. This is *FAST*. You can load and manipulate a large file in *seconds*.
-The **TiffViewer** allows for easily going through large TiffStacks, bin files, or matrices. It supports up to two colors and can get ROI time traces, mean images, and maximum projection images.
+The **TiffViewer** allows for easily going through large tiffs, bin files, or matrices. It supports up to two colors and can get ROI time traces, mean images, and maximum projection images.
 This loads things as fast as an ImageJ virtual stack, but with *MUCH FASTER* calculations.
 
 # Further Information
