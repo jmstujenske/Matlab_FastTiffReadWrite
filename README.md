@@ -38,22 +38,27 @@ Example usage:
 
 _Example 1_
 
+```Matlab
 m = memory_map_tiff('test.tif',[],2);
 channel1_frame1=m.Data(1).channel1;
+```
 
 _Example 2_
 
 _Step 1: memory map the tif and get a projection_
 
+```Matlab
 m = memory_map_tiff('test.tif','matrix',2); #Note, the matrix data has the dimensions 1 and 2 swapped compared to image display due to how Tiff files are written.
 mean_proj_twochannels=permute(mean(m.Data.allchans,3),[2 1 3]); #Mean Projection
+```
 
 _Step 2: extract the first channel from the memory mapped file and load into Matlab memory_
 
+```Matlab
 info = readtifftags; #Load tiff tags, quickly
 tiff_height=info(1).ImageHeight; 
 allchannel1data=m.Data.allchans(:,1:tiff_height,:); 
-
+```
 
 ## 3. Visualizing tiffs:
 
