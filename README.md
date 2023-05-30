@@ -1,18 +1,22 @@
 ## Matlab_FastTiffReadWrite
-Solution for dealing with large image stacks acquired for two photon calcium imaging. This is implemented in Matlab, and it includes great scripts for reading and writing uncompressed tiff files of all sizes.
+Solution for dealing with large image stacks acquired for two photon calcium imaging.
+
+![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/blob/main/Media/TiffViewer_scroll.gif)
+
+Easily scroll through a 512x512x250,000 frame file, loaded in seconds.
+
+![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/blob/main/Media/TiffViewer_ROI.png)
+
+Then, quickly get time traces from custom drawn ROIs.
+
+
+This is implemented in Matlab, and it includes great scripts for reading and writing uncompressed tiff files of all sizes.
 Use bigread4 for (relatively) quick reading and writing of tiff files into Matlab memory. Use FastTiffSave to save data from Matlab into a tiff stack quickly.
 Then, use memory_map_tiff to read and write tiff files WITHOUT needing to hold the data in Matlab memory. This is *FAST*. You can load and manipulate a large file in *seconds*.
 The TiffViewer allows for easily going through large TiffStacks, bin files, or matrices. It supports up to two colors and can get ROI time traces, mean images, and maximum projection images.
 This loads things as fast as an ImageJ virtual stack, but with *MUCH FASTER* calculations.
 
-![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/blob/main/Media/TiffViewer_scroll.gif)
-
-Easily scrolled through a 512x512x250,000 frame file. Loaded in seconds and get time traces from custom drawn ROIs. 
-
-![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/blob/main/Media/TiffViewer_ROI.png)
-
-
-##Further Information
+## Further Information
 
 # 1. Read / Write Functions:
  
