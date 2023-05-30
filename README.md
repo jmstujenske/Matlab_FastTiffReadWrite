@@ -5,11 +5,11 @@ Then, use memory_map_tiff to read and write tiff files WITHOUT needing to hold t
 The TiffViewer allows for easily going through large TiffStacks, bin files, or matrices. It supports up to two colors and can get ROI time traces, mean images, and maximum projection images.
 This loads things as fast as an ImageJ virtual stack, but with *MUCH FASTER* calculations.
 
-![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/Media/TiffViewer_scroll.gif)
+![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/blob/main/Media/TiffViewer_scroll.gif)
 
 Easily scrolled through a 512x512x250,000 frame file. Loaded in seconds and get time traces from custom drawn ROIs. 
 
-![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/Media/TiffViewer_ROI.png)
+![](https://github.com/jmstujenske/Matlab_FastTiffReadWrite/blob/main/Media/TiffViewer_ROI.png)
 
 
 ##Further Information
