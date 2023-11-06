@@ -87,6 +87,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         providedinfo=true;
         numFrames=length(info);
     end
+    imagej_bigtiff=false;
     if isfield(info,'ImageDescription')
         if contains(path_to_file,'.ome')
             imd=char(info(1).ImageDescription(:)');
@@ -104,6 +105,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 return;
             end
         elseif numFrames==1 && num2read~=1
+            imagej_bigtiff=true;
             numFramesStr = regexp(info(1).ImageDescription, 'images=(\d*)', 'tokens');
             if ~isempty(numFramesStr)
                 numFrames = max(numFrames,str2double(numFramesStr{1}{1}));
@@ -305,7 +307,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         % The StripOffsets field provides the offset to the first strip. Based on
         % the INFO for this file, each image consists of 1 strip.
         %First let's test if the data is evenly spaced...
-        if numFrames>2
+        if numFrames>2 && ~imagej_bigtiff
             if length(info)>1
                 if info(2).(offset_field)(1)-he==info(3).(offset_field)(1)-info(2).(offset_field)(1)
                     uneven_flag=0;
