@@ -115,6 +115,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                     numFrames = max(numFrames,str2double(numFramesStr{1}{1}));
                 end
             end
+            info=repmat(info,1,numFrames);
         end
     end
     if providedinfo
@@ -307,8 +308,8 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         % The StripOffsets field provides the offset to the first strip. Based on
         % the INFO for this file, each image consists of 1 strip.
         %First let's test if the data is evenly spaced...
-        if numFrames>2 && ~imagej_bigtiff
-            if length(info)>1
+        if numFrames>2
+            if ~imagej_bigtiff
                 if info(2).(offset_field)(1)-he==info(3).(offset_field)(1)-info(2).(offset_field)(1)
                     uneven_flag=0;
                 else
@@ -316,6 +317,9 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                 end
             else
                 uneven_flag=0;%%probably imagej 'bigtiff' --let's assume even spacing;
+                for info_fix=2:numFrames
+                    info(info_fix).(offset_field)=info(1).(offset_field)+he_w*he_h*bd/8*(info_fix-1);
+                end
             end
         else
             uneven_flag=2;
@@ -426,7 +430,7 @@ size_format=size(imData,1:2);
 for cnt = sframe:lastframe
     switch opt
         case 'even'
-            imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
+            imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format,n_steps);
             if cnt~=lastframe
                 fseek(fp,gapimages,'cof');
             end
@@ -434,7 +438,7 @@ for cnt = sframe:lastframe
             temp_off=info(cnt).(offset_field);
             if ~isempty(temp_off)
                 fseek(fp,info(cnt).(offset_field)(1),'bof');
-                imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format);
+                imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format,n_steps);
             else
                 lastframe=cnt;
             end

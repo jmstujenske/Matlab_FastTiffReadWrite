@@ -34,17 +34,17 @@ end
 if nargin<2 || isempty(cut_size)
     cut_size=1000;
 end
-if mod(cut_size,n_ch)>0
-    cut_size=floor(cut_size/n_ch)*n_ch;
-    disp('cut_size is not divisible by the number of channels, so it will be decreased.');
-end
 if nargin<4 || isempty(n_ch)
-    info=readtifftags(tif_file);
+    info=readtifftags(filename);
     if isfield(info,'ImageDescription')
         n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
     else
         n_ch=1;
     end
+end
+if mod(cut_size,n_ch)>0
+    cut_size=floor(cut_size/n_ch)*n_ch;
+    disp('cut_size is not divisible by the number of channels, so it will be decreased.');
 end
 if nargin<5 || isempty(which_ch)
     which_ch=1:n_ch;
