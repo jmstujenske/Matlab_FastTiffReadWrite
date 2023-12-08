@@ -2,6 +2,9 @@ function [m,n_ch,info]=memory_map_tiff(filename,opt,n_ch,read_only,n_images,repl
 %m=memory_map_tiff(filename,opt,n_ch,read_only,n_images)
 %Memory map output of FastTiffSave
 %
+%CRITICAL NOTE: Y and X dimensions will be transposed in the output due to
+%how matrix organization works in tiffs vs Matlab
+%
 %Input:
 %filename
 %opt - 'channels' or 'matrix'
