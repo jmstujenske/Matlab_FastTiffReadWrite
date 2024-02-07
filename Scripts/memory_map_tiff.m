@@ -40,10 +40,30 @@ if nargin<4 || isempty(read_only)
     read_only=false;
 end
 
-
 if nargin<5 || isempty(n_images)
     info=readtifftags(filename);
     n_images=length(info);
+    if isfield(info,'ImageDescription') && ~isempty(info(1).ImageDescription) && n_images==1 %%imagej tiff
+        try
+            if nargin<3 || isempty(n_ch)
+                n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
+            else
+                n_ch=1;
+            end
+            startind=strfind(info(1).ImageDescription,'images=')+7;
+            notnumbers=find(~ismember(uint8(info(1).ImageDescription),48:57));
+            endind=min(notnumbers(notnumbers>startind))-1;
+            n_images=str2double(char(info(1).ImageDescription(startind:endind)))*n_ch;
+        catch
+            n_ch=[];
+        end
+    elseif length(info)==1
+        predicted_num=floor((info(1).FileSize-offset)/(info(1).ImageWidth*info(1).ImageHeight*bd/8));
+        if predicted_num>1
+            n_images=predicted_num;
+            disp('Single header tiff, file larger than expected, but no image description. Will impute number of frames from file size.')
+        end
+    end
 else
     info=readtifftags(filename,1);
 end
@@ -119,28 +139,6 @@ elseif isfield(info,'ImageWidth')
 else
     error('Size Tags not recognized.')
 end
-
-    if isfield(info,'ImageDescription') && ~isempty(info(1).ImageDescription) %%imagej tiff
-        try
-            if nargin<3 || isempty(n_ch)
-                n_ch=str2double(char(info(1).ImageDescription(strfind(info(1).ImageDescription,'channels=')+9)));
-            else
-                n_ch=[];
-            end
-            startind=strfind(info(1).ImageDescription,'images=')+7;
-            notnumbers=find(~ismember(uint8(info(1).ImageDescription),48:57));
-            endind=min(notnumbers(notnumbers>startind))-1;
-            n_images=str2double(char(info(1).ImageDescription(startind:endind)))*n_ch;
-        catch
-            n_ch=[];
-        end
-    elseif length(info)==1
-        predicted_num=floor((info(1).FileSize-offset)/(info(1).ImageWidth*info(1).ImageHeight*bd/8));
-        if predicted_num>1
-            n_images=predicted_num;
-            disp('Single header tiff, file larger than expected, but no image description. Will impute number of frames from file size.')
-        end
-    end
 numFrames=n_images/n_ch;
 if isempty(n_ch) || isnan(n_ch);n_ch=1;end
 switch opt
