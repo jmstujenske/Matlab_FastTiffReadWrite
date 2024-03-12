@@ -196,9 +196,9 @@ classdef TiffViewer < handle
                     case 'mem'
                         if opt==0
                             if strcmp(obj.type,'binary')
-                                set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)]));
+                                set(obj.ax{a}.Children,'CData',imgaussfilt(obj.memmap_data(frame).(['channel',num2str(a)]),1));
                             else
-                            set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
+                                set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
                             end
                             %                         set(obj.ax{a},'XTick',[],'YTick',[])
                         else
