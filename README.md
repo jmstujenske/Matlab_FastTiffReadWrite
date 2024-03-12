@@ -55,8 +55,8 @@ mean_proj_twochannels=permute(mean(m.Data.allchans,3),[2 1 3]); #Mean Projection
 _Step 2: extract the first channel from the memory mapped file and load into Matlab memory_
 
 ```Matlab
-info = readtifftags; #Load tiff tags, quickly
-tiff_height=info(1).ImageHeight; 
+info = readtifftags('test.tif'); #Load tiff tags, quickly
+tiff_height=info(1).ImageHeight;
 allchannel1data=m.Data.allchans(:,1:tiff_height,:); 
 ```
 
