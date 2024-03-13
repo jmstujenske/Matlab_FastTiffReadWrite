@@ -44,6 +44,15 @@ if nargin<3
 end
 if nargin<5 || isempty(n_images)
     info=readtifftags(filename);
+    if isfield(info,'StripOffsets')
+        offset_field='StripOffsets';
+    elseif isfield(info,'TileOffsets')
+        offset_field='TileOffsets';
+    else
+        error('Neither strip nor tile format.')
+    end
+    offset=info(1).(offset_field)(1);
+    bd=info(1).BitsPerSample;
     n_images=length(info);
     if isfield(info,'ImageDescription') && ~isempty(info(1).ImageDescription) && n_images==1 %%imagej tiff
         try
@@ -68,16 +77,20 @@ if nargin<5 || isempty(n_images)
     end
 else
     info=readtifftags(filename,1);
+    if isfield(info,'StripOffsets')
+        offset_field='StripOffsets';
+    elseif isfield(info,'TileOffsets')
+        offset_field='TileOffsets';
+    else
+        error('Neither strip nor tile format.')
+    end
+    offset=info(1).(offset_field)(1);
+    bd=info(1).BitsPerSample;
 end
-if isfield(info,'StripOffsets')
-    offset_field='StripOffsets';
-elseif isfield(info,'TileOffsets')
-    offset_field='TileOffsets';
-else
-    error('Neither strip nor tile format.')
+bo=strcmp(info(1).ByteOrder,'big-endian');
+if bo
+    error('Memory mapping does not work with big-endian data');
 end
-offset=info(1).(offset_field)(1)-1;
-bd=info(1).BitsPerSample;
 if isfield(info,'SampleFormat')
     sf = info(1).SampleFormat;
 else
