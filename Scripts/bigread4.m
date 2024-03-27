@@ -63,7 +63,7 @@ if nargin<2 || isempty(sframe)
     num2read=inf;
 end
 if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
-    
+
     %get image info
     if nargin<4
         info=[];
@@ -124,12 +124,20 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         numFrames=length(info);
         %     numFrames=blah(1);
     end
-                fieldstoadd={'BitDepth','Width','Height'};
-            fieldstomatch={'BitsPerSample','ImageWidth','ImageHeight'};
-            for field_rep=1:3
-                temp=num2cell(repmat(info(1).(fieldstomatch{field_rep}),numFrames,1),2);
-                [info(1:numFrames).(fieldstoadd{field_rep})]=temp{:};
-            end
+    %%In some versions of Matlab, if imfinfo is invoked, it doesn't use
+    %%standard tiff tag names, adding three fields of different names to
+    %%the standard. To fix this, we will just add them if they don't exist
+    %%and use those names moving forward.
+    %This only becomes relevant if readtifftags reached an error for some
+    %reason.
+    fieldstoadd={'BitDepth','Width','Height'};
+    fieldstomatch={'BitsPerSample','ImageWidth','ImageHeight'};
+    for field_rep=1:3
+        if ~isfield(info,fieldstoadd{field_rep})
+            temp=num2cell(repmat(info(1).(fieldstomatch{field_rep}),numFrames,1),2);
+            [info(1:numFrames).(fieldstoadd{field_rep})]=temp{:};
+        end
+    end
     if nargin<3 || isempty(num2read) || isinf(num2read)
         num2read=numFrames;
     end
@@ -209,7 +217,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         case {'undefined data format'}
             error('Unknown data format.')
     end
-    
+
     if (bd==64)
         switch sf
             case 3
@@ -288,9 +296,9 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
     if ~compressedfile
         fp = fopen(path_to_file ,'rb',formatline);
         %     try
-        
+
         % Use low-level File I/O to read the file
-        
+
         if ~isfield(info,'FileSize')
             fseek(fp,0,'eof');
             filesize = ftell(fp);
@@ -357,11 +365,11 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                     [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,gapimages,off_type,n_steps,'even');
                 end
             end
-            
+
             %         display('Finished reading images')
         else
             [imData,lastframe]=read_data(fp,sframe,lastframe,form,he_step,imData,[],off_type,n_steps,'uneven',info,offset_field);
-            
+
         end
         fclose(fp);
         fileprocessed=1;
@@ -460,11 +468,11 @@ switch off_type
             for read_rep_w=1:n_steps(1)
                 if strcmpi(form,'double')
                     imData_next=zeros(size_format,'single');
-                    
+
                     imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(fread(fp, he_step, form)','single');
                 else
                     imData_next=zeros(size_format,form);
-                    
+
                     imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, ['*',form])';
                 end
             end
