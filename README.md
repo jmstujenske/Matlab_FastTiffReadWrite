@@ -31,7 +31,7 @@ FastTiffSave(imData,'C:\Users\Admin\Desktop\test_copy.tif');
 ## 2. Memory mapping function:
 
 memory_map_tiff -- memory map a tiff, to read quickly, like you could for a binary file
-%Works for all tiffs saved by FastTiffSave, but will work for most other tiffs. A caveat is that the memory mapping can be done in two ways: as a large matrix (which has some advantages for certain manipulation of the data), or a structure with a single entry per frame. The matrix method will only work if the tiff tags are not embedded within the image data and the image data is written as one continuous chunk in the file. Functions like SaveasTiff, the builtin Tiff class, or standard Tiff libraries do not save the Tiffs this way, so you are limited to use the structure based method. This is not a problem with TiffViewer (see below).
+%Works for all tiffs saved by FastTiffSave, but will work for most other tiffs. Tiffs saved with Big-endian convention cannot be memory mapped, and an error will be thrown. A caveat is that the memory mapping can be done in two ways: as a large matrix (which has some advantages for certain manipulation of the data), or a structure with a single entry per frame. The matrix method will only work if the tiff tags are not embedded within the image data and the image data is written as one continuous chunk in the file. Functions like SaveasTiff, the builtin Tiff class, or standard Tiff libraries do not save the Tiffs this way, so you are limited to use the structure based method. This is not a problem with TiffViewer (see below).
 
 Example usage:
 
