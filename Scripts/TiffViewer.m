@@ -2,7 +2,8 @@ classdef TiffViewer < handle
     %Class to view tiffs using memory mapping
     %tv=TiffViewer(input,n_ch);
     %
-    %input = .tif file path, .bin file path, or matrix
+    %input = .tif file path, .bin file path, folder (for multi-file tif stack)
+    %or matrix
     %
     %n_ch = number of channels in the file (default behavior: will try to
     %determine from the file, if possible; if not, 1).
@@ -55,6 +56,18 @@ classdef TiffViewer < handle
             end
             if ischar(filename)
                 [folder,file,ext]=fileparts(filename);
+                if ~isempty(ext)
+                    obj.filename=filename;
+                else
+                    temp=dir(fullfile(folder,file,'*.tif*'));
+                    obj.filename=cell(1,length(temp));
+                    for rep=1:length(temp)
+                        obj.filename{rep}=fullfile(folder,temp(rep).name);
+                    end
+                    filename=obj.filename;
+                    obj.numFrames=length(temp);
+                end
+
                 if strcmp(ext,'.tif') || strcmp(ext,'.tiff')
                     info = readtifftags(filename);
                     offset_field=get_offset_field(info);
@@ -100,10 +113,25 @@ classdef TiffViewer < handle
                             obj.type='binary';
                             width=framesize(2);
                             height=framesize(1);
+                        case []
+                            obj.map_type='file';
+                            info=readtifftags(filename{1});
+                            width=info(1).ImageWidth;
+                            height=info(1).ImageHeight;
+                            obj.memmap_data=filename;
+                            obj.memmap=set_up_file(filename,info,n_ch);
                         otherwise
                             error('File extension not recognized');
                     end
-                    obj.memmap_data=obj.memmap.Data;
+                    try
+                        obj.memmap_data=obj.memmap.Data;
+                    catch
+                        obj.map_type='file';
+                        obj.memmap = set_up_file(filename,info,n_ch);
+                        if isempty(obj.memmap_data)
+                        obj.memmap_data = 1;
+                        end
+                    end
                 else
                     obj.map_type='file';
                     obj.memmap = set_up_file(filename,info,n_ch);
@@ -116,13 +144,13 @@ classdef TiffViewer < handle
                 filename=permute(filename,[2 1 3]);
                 [height width numFrames]=size(filename);
 
-                data=[];
+                datavals=[];
                 ch_names=cell(1,n_ch);
                 for ch_rep=1:n_ch
-                    data=cat(2,data,squeeze((mat2cell(filename(:,:,ch_rep:n_ch:end),height,width,ones(size(filename,3)/n_ch,1)))));
+                    datavals=cat(2,datavals,squeeze((mat2cell(filename(:,:,ch_rep:n_ch:end),height,width,ones(size(filename,3)/n_ch,1)))));
                     ch_names(ch_rep)={['channel',num2str(ch_rep)]};
                 end
-                obj.memmap_data=cell2struct(data,ch_names,2)';
+                obj.memmap_data=cell2struct(datavals,ch_names,2)';
                 obj.map_type='mem';
                 file='matrix';
                 ext=[];
@@ -145,7 +173,12 @@ classdef TiffViewer < handle
                         obj.n_ch=n_ch;
                     end
                 case 'file'
+                    if ~isempty(n_ch)
                     obj.n_ch=n_ch;
+                    else
+                        n_ch=1;
+                        obj.n_ch=1;
+                    end
             end
             obj.numFrames=length(obj.memmap_data);
             for rep=1:obj.n_ch
@@ -170,10 +203,15 @@ classdef TiffViewer < handle
                 case 'file'
                     for a=1:obj.n_ch
                         obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
-                        fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
-                        data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
-                        data=reshape(data,obj.memmap.frame_size)';
-                        maxval=max(maxval,max(data,[],'all'));
+                        % fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
+                        % data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
+                        % data=reshape(data,obj.memmap.frame_size)';
+                        if ~iscell(obj.filename)
+                        datavals=bigread4(obj.filename,obj.memmap_data,obj.n_ch);
+                        else
+                        datavals=bigread4(obj.filename{obj.memmap_data},1,obj.n_ch);
+                        end
+                        maxval=max(maxval,max(datavals,[],'all'));
                     end
             end
             set(obj.ax{a},'CLim',[0 maxval]);
@@ -212,14 +250,19 @@ classdef TiffViewer < handle
                         end
                     case 'file'
                         obj.memmap_data=(data.CurrFrame-1)*obj.n_ch+a;
-                        fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
-                        data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
-                        data=reshape(data,obj.memmap.frame_size)';
+                        % fseek(obj.memmap.fid,diff([ftell(obj.memmap.fid),obj.memmap.idx(obj.memmap_data)]),'cof');
+                        % data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
+                        % data=reshape(data,obj.memmap.frame_size)';
+                        if ~iscell(obj.filename)
+                            datavals=bigread4(obj.filename,obj.memmap_data,obj.n_ch);
+                        else
+                            datavals=bigread4(obj.filename{obj.memmap_data},1,obj.n_ch);
+                        end
                         if opt==0
-                            set(obj.ax{a}.Children,'CData',data');
+                            set(obj.ax{a}.Children,'CData',datavals');
                             %                         set(obj.ax{a},'XTick',[],'YTick',[])
                         else
-                            imagesc(obj.ax{a},data');
+                            imagesc(obj.ax{a},datavals');
                             set(obj.ax{a},'XTick',[],'YTick',[])
                         end
                 end
@@ -540,6 +583,9 @@ delete(obj);
 delete(tv);
 end
 function map=set_up_file(filename,info,n_ch);
+if iscell(filename)
+    filename=filename{1};
+end
 offset_field=get_offset_field(info);
 map.idx=zeros(length(info),1);
 for rep=1:length(map.idx)
