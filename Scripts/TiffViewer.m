@@ -207,11 +207,12 @@ classdef TiffViewer < handle
                         % data=fread(obj.memmap.fid,obj.memmap.data_size,obj.memmap.form);
                         % data=reshape(data,obj.memmap.frame_size)';
                         if ~iscell(obj.filename)
-                        datavals=bigread4(obj.filename,obj.memmap_data,obj.n_ch);
+                        datavals=readtifftags(obj.filename);
                         else
-                        datavals=bigread4(obj.filename{obj.memmap_data},1,obj.n_ch);
+                        datavals=readtifftags(obj.filename{obj.memmap_data});
                         end
-                        maxval=max(maxval,max(datavals,[],'all'));
+                        maxval=2.^datavals.BitsPerSample-1;
+                        % maxval=max(maxval,max(datavals,[],'all'));
                     end
             end
             set(obj.ax{a},'CLim',[0 maxval]);
