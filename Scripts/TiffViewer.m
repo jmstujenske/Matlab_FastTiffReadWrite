@@ -137,7 +137,7 @@ classdef TiffViewer < handle
                     obj.memmap = set_up_file(filename,info,n_ch);
                     obj.memmap_data = 1;
                 end
-            elseif isnumeric(filename)
+            elseif isnumeric(filename) || islogical(filename)
                 if isempty(n_ch)
                     n_ch=1;
                 end
@@ -235,9 +235,9 @@ classdef TiffViewer < handle
                     case 'mem'
                         if opt==0
                             if strcmp(obj.type,'binary')
-                                set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)]));
+                                set(data.im{a},'CData',obj.memmap_data(frame).(['channel',num2str(a)]));
                             else
-                                set(obj.ax{a}.Children,'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
+                                set(data.im{a},'CData',obj.memmap_data(frame).(['channel',num2str(a)])');
                             end
                             %                         set(obj.ax{a},'XTick',[],'YTick',[])
                         else
@@ -247,6 +247,7 @@ classdef TiffViewer < handle
                                 imagesc(obj.ax{a},obj.memmap_data(frame).(['channel',num2str(a)])');
                             end
                             set(obj.ax{a},'XTick',[],'YTick',[])
+                            data.im{a}=obj.ax{a}.Children;
                             colormap('gray');
                         end
                     case 'file'

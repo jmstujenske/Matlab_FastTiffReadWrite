@@ -25,6 +25,8 @@ function [m,n_ch,info]=memory_map_tiff(filename,opt,n_ch,read_only,n_images,repl
 %
 %Output:
 %m - memory map
+%n_ch - number of channels
+%info - tiff tags
 %
 %Note: if n_ch is provided, matrix option will yield a matrix that is [Y
 %X*n_ch replicates]; if it is preferred for the matrix to be [Y X n_ch ...]
