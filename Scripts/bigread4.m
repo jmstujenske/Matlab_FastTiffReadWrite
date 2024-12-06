@@ -101,7 +101,8 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
                     error('Please install bioformats plugin: https://www.openmicroscopy.org/bio-formats/downloads/');
                 end
                 data=bfopen(path_to_file);
-                imData=cat(3,data{1}{:,1});
+                temp_data=cellfun(@(x) cat(3,x{:,1}),data(:,1),'UniformOutput',false);
+                imData=cat(3,temp_data{:});
                 return;
             end
         elseif numFrames==1 && num2read~=1
