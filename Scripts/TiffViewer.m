@@ -54,7 +54,10 @@ classdef TiffViewer < handle
                     n_ch=str2double(userinputs{1});
                 end
             end
-            if ischar(filename)
+            if ischar(filename) || isstring(filename) 
+                if isstring(filename)
+                    filename = char(filename);
+                end
                 [folder,file,ext]=fileparts(filename);
                 if ~isempty(ext)
                     obj.filename=filename;
