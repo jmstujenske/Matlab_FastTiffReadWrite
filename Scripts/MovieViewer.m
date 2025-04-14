@@ -45,6 +45,7 @@ classdef MovieViewer < handle
         memmap
         memmap_matrix
         listener
+        image_object
     end
     
     methods
@@ -185,18 +186,19 @@ classdef MovieViewer < handle
         function setupFromMatrix(obj, filename, n_ch)
             % filename = permute(filename, [2 1 3]);
             [height, width, obj.numFrames] = size(filename);
-            datavals = obj.processChannels(filename, height, width, n_ch);
-            obj.memmap_data = cell2struct(datavals, obj.generateChannelNames(n_ch), 2)';
+            % datavals = obj.processChannels(filename, height, width, n_ch);
+            % obj.memmap_data = cell2struct(datavals, obj.generateChannelNames(n_ch), 2)';
+            obj.memmap_matrix_data = filename;
             obj.map_type = 'mem';
             obj.type='matrix';
         end
 
-        function datavals = processChannels(~, filename, height, width, n_ch)
-            datavals = [];
-            for ch_rep = 1:n_ch
-                datavals = cat(2, datavals, mat2cell(filename(:, :, ch_rep:n_ch:end), height, width, ones(size(filename, 3) / n_ch, 1)));
-            end
-        end
+        % function datavals = processChannels(~, filename, height, width, n_ch)
+        %     datavals = [];
+        %     for ch_rep = 1:n_ch
+        %         datavals = cat(2, datavals, mat2cell(filename(:, :, ch_rep:n_ch:end), height, width, ones(size(filename, 3) / n_ch, 1)));
+        %     end
+        % end
         
         function ch_names = generateChannelNames(~, n_ch)
             ch_names = arrayfun(@(x) ['channel', num2str(x)], 1:n_ch, 'UniformOutput', false);
@@ -280,7 +282,14 @@ classdef MovieViewer < handle
             data=guidata(obj.figure);
             dataField = ['channel', num2str(channel)];
             frame=obj.CurrFrame;
+            
+            if isempty(obj.memmap_matrix_data)
             imgData = obj.memmap_data(frame).(dataField);
+            else
+            [y_len, x_len] = size(obj.memmap_matrix_data, 1:2);
+            imgData = obj.memmap_matrix_data(:, (1:x_len/obj.n_ch) + (channel-1) * x_len/obj.n_ch, frame);
+            end
+
             % if strcmp(obj.type, 'binary') || strcmp(obj.type, 'matrix')
             %     imgData = imgData';
             % end
@@ -295,6 +304,7 @@ classdef MovieViewer < handle
                 data.im{channel}=obj.ax{channel}.Children;
                 colormap('gray');
             end
+            obj.image_object{channel}=obj.ax{channel}.Children;
             guidata(obj.figure,data);
         end
         
@@ -359,7 +369,7 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
                 tv.memmap = memory_map_tiff(filename, [], n_ch, true);
                 if isfield(info, 'GapBetweenImages') && info(1).GapBetweenImages == 0
 
-                    tv.memmap = memory_map_tiff(filename,[],n_ch,true);
+                    % tv.memmap = memory_map_tiff(filename,[],n_ch,true);
                                 tv.memmap_matrix = memory_map_tiff(filename,'matrix',n_ch,true);
                                 tv.memmap_matrix_data = tv.memmap_matrix.Data.allchans;           
                 end
@@ -389,14 +399,14 @@ function tv = setupBinaryMapping(tv, evt, filename, n_ch, framesize, form)
     tv.map_type = 'mem';
     
     % Prepare memory mapping format for each channel
-    format_string = cell(n_ch, 3);
-    for ch_rep = 1:n_ch
-        format_string(ch_rep, :) = {form, framesize, ['channel', num2str(ch_rep)]};
-    end
+    % format_string = cell(n_ch, 3);
+    % for ch_rep = 1:n_ch
+    %     format_string(ch_rep, :) = {form, framesize, ['channel', num2str(ch_rep)]};
+    % end
 
     % Set up memory mapping
-    tv.memmap = memmapfile(filename, 'Format', format_string, 'Writable', false);
     tv.memmap_matrix = memmapfile(filename, 'Format', {form, [framesize, length(tv.memmap.Data)], 'allchans'}, 'Writable', false);
+    tv.memmap_matrix_data = tv.memmap.Data.allchans;
     
     % Store mapped data
     tv.memmap_matrix_data = tv.memmap_matrix.Data.allchans;
@@ -537,12 +547,12 @@ function P = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_s
         [y_len, x_len] = size(tv.memmap_matrix_data, 1:2);
         subdiv = 5; % Process in chunks to avoid memory overload
         n_subdiv = ceil(tv.numFrames / subdiv);
-        P = zeros(y_len, x_len / tv.n_ch, 'double');
+        P = zeros(x_len, y_len / tv.n_ch, 'double');
         
         for rep = 1:n_subdiv
             frames = 1 + (rep - 1) * subdiv : min(subdiv * rep, tv.numFrames);
             temp_frames = sum(tv.memmap_matrix_data(:, (1:x_len/tv.n_ch) + (ch-1) * x_len/tv.n_ch, frames), 3) / tv.numFrames;
-            P = imadd(P, temp_frames);
+            P = imadd(P, permute(temp_frames,[2 1 3]));
             
             if toc > max_time / 2
                 disp(['Max time reached for channel ', num2str(ch), '.']);
@@ -629,15 +639,18 @@ end
 function ROI_select(hOject,event,tv)
 data=guidata(tv.figure);
 ax=gca;
+if length(ax.Children)>1
+    in=isa(ax.Children,'matlab.graphics.primitive.Image');
+else
+    in=1;
+end
 if ~isfield(data,'ROI_precalc')
     if strcmp(tv.type,'tif')
-         data.ROI_precalc.frame_size=size(ax.Children.CData');
+         data.ROI_precalc.frame_size=size(ax.Children(in).CData');
              [data.ROI_precalc.x,data.ROI_precalc.y]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
-
     else
-        data.ROI_precalc.frame_size=size(ax.Children.CData);
+        data.ROI_precalc.frame_size=size(ax.Children(in).CData);
             [data.ROI_precalc.y,data.ROI_precalc.x]=ind2sub(data.ROI_precalc.frame_size,1:prod(data.ROI_precalc.frame_size));
-
     end
 end
 data.ROI=drawpolygon(ax);
@@ -659,7 +672,7 @@ if isempty(tv.memmap_matrix_data)
 else
     for b=1:tv.n_ch
         % ins=find(pixel_mask(:));
-        z_series(b,:)=mean(tv.memmap_matrix_data(ins+(b-1)*numel(pixels)+(0:tv.numFrames-1)*numel(pixels)*tv.n_ch),1);
+        z_series(b,:)=mean(tv.memmap_matrix_data(in'+(b-1)*numel(pixels)+(0:tv.numFrames-1)*numel(pixels)*tv.n_ch),1);
     end
 end
 f_out=figure;
