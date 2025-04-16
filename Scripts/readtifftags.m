@@ -191,12 +191,11 @@ if NextIFD~=0 && lasttag~=1
         
         db=diff(buff_foff);
         
-        try
-            data_size=sum(info(1).StripByteCounts);
-        catch
-            
+        % try
+        %     data_size=sum(info(1).StripByteCounts);
+        % catch
             data_size=info(1).ImageHeight*info(1).ImageWidth*sum(info(1).BitsPerSample)/8;
-        end
+        % end
         %%%check for logical arrangement of files: fid first, first interleaved, or
         %%%fid end.
         
