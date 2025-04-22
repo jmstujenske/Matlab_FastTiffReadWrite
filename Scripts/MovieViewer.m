@@ -131,6 +131,8 @@ classdef MovieViewer < handle
         function uneven_flag = checkUnevenFlag(~, info)
             if length(info) > 3 && info(2).StripOffsets(1) - info(1).StripOffsets(1) ~= info(3).StripOffsets(1) - info(2).StripOffsets(1)
                 uneven_flag = 1;
+            elseif isempty(info)
+                uneven_flag = 1;
             else
                 uneven_flag = 0;
             end
@@ -156,8 +158,6 @@ classdef MovieViewer < handle
                     end
             else
                 obj.map_type = 'file';
-            end
-            if strcmp(obj.map_type,'file')
                 obj.setupFileMapping(filename, info, n_ch);
                 if ~isempty(n_ch)
                     obj.n_ch=n_ch;
@@ -173,8 +173,9 @@ classdef MovieViewer < handle
             switch ext
                 case {'.tif', '.tiff', []}
                     obj.setupTiffMapping(filename, n_ch, info);
-                    if ~isempty(obj.memmap_data)
+                    if ~iscell(obj.memmap_data)
                     obj.memmap_data=obj.memmap.Data;
+                    obj.map_type = 'file';
                     end
                     obj.type='tif';
                 case '.bin'
@@ -187,8 +188,8 @@ classdef MovieViewer < handle
         end
         
         function setupFileMapping(obj, filename, info, n_ch)
-            obj.memmap = set_up_file(filename, info, n_ch);
-            obj.memmap_data = obj.memmap.Data;
+            % obj.memmap = set_up_file(filename, info, n_ch);
+            % obj.memmap_data = obj.memmap.Data;
         end
         
         function setupFromMatrix(obj, filename, n_ch)
@@ -350,7 +351,7 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
         if isempty(ext)  % Case when we provide a folder, not a file
             % Read all TIFF files in the folder
             tv.numFrames = length(tv.filename);
-            tv.memmap = tv.filename;
+            tv.memmap_data = tv.filename;
         else
             tv.filename = filename;
             tv.numFrames = 1; % Single file
