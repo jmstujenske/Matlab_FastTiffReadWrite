@@ -476,21 +476,11 @@ switch off_type
             for read_rep_w=1:n_steps(1)
                 if strcmpi(form,'double')
                     imData_next=zeros(size_format,'single');
-<<<<<<< Updated upstream
-
-                    imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(fread(fp, he_step, form)','single');
-                else
-                    imData_next=zeros(size_format,form);
-
-                    imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, ['*',form])';
-=======
-                    
                     imData_next(1+(read_rep_h-1)*he_step(3):read_rep_h*he_step(3),1+(read_rep_w-1)*prod(he_step(1:2)):read_rep_w*prod(he_step(1:2)),cnt-sframe+1,:)=permute(cast(fread(fp, he_step, form)','single'),[1 3 2 4]);
                 else
                     imData_next=zeros(size_format,form);
                     
                     imData_next(1+(read_rep_h-1)*he_step(3):read_rep_h*he_step(3),1+(read_rep_w-1)*prod(he_step(1:2)):read_rep_w*prod(he_step(1:2)),cnt-sframe+1,:)=permute(fread(fp, he_step, ['*',form])',[1 3 2 4]);
->>>>>>> Stashed changes
                 end
             end
         end

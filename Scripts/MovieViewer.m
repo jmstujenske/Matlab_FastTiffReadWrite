@@ -66,6 +66,10 @@ classdef MovieViewer < handle
                 uneven_flag = obj.checkUnevenFlag(info);
 
                 n_ch=obj.setupMemoryMapping(ext, filename, n_ch, info, uneven_flag);
+                if isempty(info)
+                    keyboard;
+                    info = obj.readTiffInfo(obj.filename{1});
+                end
                 obj.numFrames=length(obj.memmap_data);
                 [height, width] = obj.getDimensions(info);
 
@@ -137,7 +141,7 @@ classdef MovieViewer < handle
             if ~uneven_flag || strcmp(ext, '.bin')
                 obj.map_type = 'mem';
                 obj.handleMemoryMapping(ext, filename, n_ch, info);
-                    if exist('info','var')
+                    if exist('info','var') && ~isempty(info)
                         if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
                             obj.n_ch=length(fieldnames(obj.memmap_data));
                         elseif length(info)>2
@@ -167,7 +171,9 @@ classdef MovieViewer < handle
             switch ext
                 case {'.tif', '.tiff', []}
                     obj.setupTiffMapping(filename, n_ch, info);
+                    if ~isempty(obj.memmap_data)
                     obj.memmap_data=obj.memmap.Data;
+                    end
                     obj.type='tif';
                 case '.bin'
                     obj.setupBinaryMapping(filename, n_ch);
@@ -339,7 +345,6 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
     % Check if filename is a string (single TIFF file)
     if ischar(filename)
         [folder, file, ext] = fileparts(filename);
-        
         if isempty(ext)  % Case when we provide a folder, not a file
             % Read all TIFF files in the folder
             temp = dir(fullfile(folder, file, '*.tif*'));
@@ -349,6 +354,7 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
             end
             tv.numFrames = length(temp);
             filename = tv.filename;
+            tv.memmap = filename;
         else
             tv.filename = filename;
             tv.numFrames = 1; % Single file
