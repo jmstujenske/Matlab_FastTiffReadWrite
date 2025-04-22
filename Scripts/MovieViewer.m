@@ -61,17 +61,16 @@ classdef MovieViewer < handle
             
             if ischar(filename)
                 [folder, file, ext] = fileparts(filename);
-                obj.filename = obj.resolveFileName(filename, folder, file, ext, n_ch);
+                obj.resolveFileName(filename, folder, file, ext, n_ch);
                 info = obj.readTiffInfo(filename);
                 uneven_flag = obj.checkUnevenFlag(info);
 
                 n_ch=obj.setupMemoryMapping(ext, filename, n_ch, info, uneven_flag);
                 if isempty(info)
-                    keyboard;
                     info = obj.readTiffInfo(obj.filename{1});
                 end
                 obj.numFrames=length(obj.memmap_data);
-                [height, width] = obj.getDimensions(info);
+                dims = obj.getDimensions(info);
 
             elseif isnumeric(filename)
                 if isempty(n_ch), n_ch = 1; end
@@ -107,10 +106,10 @@ classdef MovieViewer < handle
     end
     
     methods (Access = private)
-        function filename = resolveFileName(obj, filename, folder, file, ext, n_ch)
+        function resolveFileName(obj, filename, folder, file, ext, n_ch)
             if isempty(ext)
                 temp = dir(fullfile(folder, file, '*.tif*'));
-                obj.filename = arrayfun(@(x) fullfile(folder, x.name), temp, 'UniformOutput', false);
+                obj.filename = arrayfun(@(x) fullfile(x.folder, x.name), temp, 'UniformOutput', false);
                 obj.numFrames = length(temp);
             elseif any(strcmp(ext, {'.tif', '.tiff'}))
                 obj.filename = filename;
@@ -150,6 +149,9 @@ classdef MovieViewer < handle
                             obj.n_ch=length(fieldnames(obj.memmap_data));
                         end
                     else
+                        if isempty(n_ch)
+                            n_ch=1;
+                        end
                         obj.n_ch=n_ch;
                     end
             else
@@ -347,14 +349,8 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
         [folder, file, ext] = fileparts(filename);
         if isempty(ext)  % Case when we provide a folder, not a file
             % Read all TIFF files in the folder
-            temp = dir(fullfile(folder, file, '*.tif*'));
-            tv.filename = cell(1, length(temp));
-            for rep = 1:length(temp)
-                tv.filename{rep} = fullfile(folder, temp(rep).name);
-            end
-            tv.numFrames = length(temp);
-            filename = tv.filename;
-            tv.memmap = filename;
+            tv.numFrames = length(tv.filename);
+            tv.memmap = tv.filename;
         else
             tv.filename = filename;
             tv.numFrames = 1; % Single file
