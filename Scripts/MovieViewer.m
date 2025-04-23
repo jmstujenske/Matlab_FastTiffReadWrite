@@ -270,17 +270,13 @@ classdef MovieViewer < handle
 
         function closeFigure(obj, ~, ~)
             data = guidata(obj.figure);
-            delete(obj.listener);
-            stop(data.timer);
-            obj.cleanupMemoryMapping();
+            try;delete(obj.listener);end
+            try;stop(data.timer);end
+            try;obj.cleanupMemoryMapping();end
             delete(obj.figure);
-            delete(obj);
         end
         
         function cleanupMemoryMapping(obj)
-            if isstruct(obj.memmap) && isfield(obj.memmap, 'fid')
-                fclose(obj.memmap.fid);
-            end
             obj.memmap_data = [];
             obj.memmap_matrix_data = [];
             obj.memmap = [];
