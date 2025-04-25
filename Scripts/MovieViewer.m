@@ -50,28 +50,31 @@ classdef MovieViewer < handle
     
     methods
         function obj = MovieViewer(filename, n_ch)
-            if nargin < 2, n_ch = []; end
+            if nargin < 2, obj.n_ch = []; else obj.n_ch=n_ch;end
             if nargin < 1 || isempty(filename)
                 filename = uigetfile({'*.tif;*.tiff'});
-                if isempty(n_ch)
+                if isempty(obj.n_ch)
                     userinputs = inputdlg({'Number of channels:'});
-                    n_ch = str2double(userinputs{1});
+                    obj.n_ch = str2double(userinputs{1});
                 end
             end
             
             if ischar(filename)
-                [folder, file, ext] = fileparts(filename);
-                obj.filename = obj.resolveFileName(filename, folder, file, ext, n_ch);
-                info = obj.readTiffInfo(filename);
+                obj.resolveFileName(filename);
+                [~,~,ext]=fileparts(filename);
+                info = obj.readTiffInfo;
+                obj.setNumFrames(info);
                 uneven_flag = obj.checkUnevenFlag(info);
-
-                n_ch=obj.setupMemoryMapping(ext, filename, n_ch, info, uneven_flag);
-                obj.numFrames=length(obj.memmap_data);
-                [height, width] = obj.getDimensions(info);
-
+                obj.setupMemoryMapping(filename, obj.n_ch, info, uneven_flag);
+                if isempty(info)
+                    info = obj.readTiffInfo(obj.filename{1});
+                else
+                end
+                dims = obj.getDimensions(info);
+                file=filename;
             elseif isnumeric(filename)
-                if isempty(n_ch), n_ch = 1; end
-                obj.setupFromMatrix(filename, n_ch);
+                if isempty(obj.n_ch), obj.n_ch = 1; end
+                obj.setupFromMatrix(filename, obj.n_ch);
                 file='Matrix';
                 dims=size(filename);
                 ext=[];
@@ -79,7 +82,7 @@ classdef MovieViewer < handle
                 error('Input type not recognized.');
             end
             obj.setupFigure(file, ext);
-            obj.setupAxes(dims, n_ch);
+            obj.setupAxes(dims, obj.n_ch);
             obj.setupSlider();
             obj.setupTimer();
             obj.displayFrame(1);
@@ -103,23 +106,30 @@ classdef MovieViewer < handle
     end
     
     methods (Access = private)
-        function filename = resolveFileName(obj, filename, folder, file, ext, n_ch)
+        function resolveFileName(obj, filename)
+            [folder, file, ext] = fileparts(filename);
             if isempty(ext)
                 temp = dir(fullfile(folder, file, '*.tif*'));
-                obj.filename = arrayfun(@(x) fullfile(folder, x.name), temp, 'UniformOutput', false);
-                obj.numFrames = length(temp);
-            elseif any(strcmp(ext, {'.tif', '.tiff'}))
+                obj.filename = arrayfun(@(x) fullfile(x.folder, x.name), temp, 'UniformOutput', false);
+            elseif any(strcmp(ext, {'.tif', '.tiff', '.bin'}))
                 obj.filename = filename;
             else
                 obj.filename = [];
-                obj.numFrames = [];
+            end
+        end
+
+        function setNumFrames(obj,info)
+            if isempty(info)
+                obj.numFrames=length(obj.filename);
+            else
+                obj.numFrames=length(info);
             end
         end
         
-        function info = readTiffInfo(~,filename)
-            [folder,file,ext]=fileparts(filename);
+        function info = readTiffInfo(obj)
+            [folder,file,ext]=fileparts(obj.filename);
             if any(strcmp(ext, {'.tif', '.tiff'}))
-                info = readtifftags(filename);
+                info = readtifftags(obj.filename);
             else
                 info = [];
             end
@@ -128,16 +138,19 @@ classdef MovieViewer < handle
         function uneven_flag = checkUnevenFlag(~, info)
             if length(info) > 3 && info(2).StripOffsets(1) - info(1).StripOffsets(1) ~= info(3).StripOffsets(1) - info(2).StripOffsets(1)
                 uneven_flag = 1;
+            elseif isempty(info) || info(1).Compression~=1
+                uneven_flag = 1;
             else
                 uneven_flag = 0;
             end
         end
         
-        function n_ch=setupMemoryMapping(obj, ext, filename, n_ch, info, uneven_flag)
-            if ~uneven_flag || strcmp(ext, '.bin')
+        function setupMemoryMapping(obj, filename, n_ch, info, uneven_flag)
+            [~,~,ext]=fileparts(filename);
+            if strcmp(ext, '.bin') || ~uneven_flag
                 obj.map_type = 'mem';
-                obj.handleMemoryMapping(ext, filename, n_ch, info);
-                    if exist('info','var')
+                obj.handleMemoryMapping(filename, n_ch, info);
+                    if exist('info','var') && ~isempty(info)
                         if isfield(info,'GapBetweenImages') && info(1).GapBetweenImages==0
                             obj.n_ch=length(fieldnames(obj.memmap_data));
                         elseif length(info)>2
@@ -146,12 +159,13 @@ classdef MovieViewer < handle
                             obj.n_ch=length(fieldnames(obj.memmap_data));
                         end
                     else
+                        if isempty(n_ch)
+                            n_ch=1;
+                        end
                         obj.n_ch=n_ch;
                     end
             else
                 obj.map_type = 'file';
-            end
-            if strcmp(obj.map_type,'file')
                 obj.setupFileMapping(filename, info, n_ch);
                 if ~isempty(n_ch)
                     obj.n_ch=n_ch;
@@ -163,11 +177,15 @@ classdef MovieViewer < handle
             n_ch=obj.n_ch;
         end
 
-        function handleMemoryMapping(obj, ext, filename, n_ch, info)
+        function handleMemoryMapping(obj, filename, n_ch, info)
+            [~,~,ext]=fileparts(filename);
             switch ext
                 case {'.tif', '.tiff', []}
                     obj.setupTiffMapping(filename, n_ch, info);
+                    if ~iscell(obj.memmap_data)
                     obj.memmap_data=obj.memmap.Data;
+                    obj.map_type = 'file';
+                    end
                     obj.type='tif';
                 case '.bin'
                     obj.setupBinaryMapping(filename, n_ch);
@@ -179,8 +197,8 @@ classdef MovieViewer < handle
         end
         
         function setupFileMapping(obj, filename, info, n_ch)
-            obj.memmap = set_up_file(filename, info, n_ch);
-            obj.memmap_data = obj.memmap.Data;
+            % obj.memmap = set_up_file(filename, info, n_ch);
+            % obj.memmap_data = obj.memmap.Data;
         end
         
         function setupFromMatrix(obj, filename, n_ch)
@@ -252,17 +270,13 @@ classdef MovieViewer < handle
 
         function closeFigure(obj, ~, ~)
             data = guidata(obj.figure);
-            delete(obj.listener);
-            stop(data.timer);
-            obj.cleanupMemoryMapping();
+            try;delete(obj.listener);end
+            try;stop(data.timer);end
+            try;obj.cleanupMemoryMapping();end
             delete(obj.figure);
-            delete(obj);
         end
         
         function cleanupMemoryMapping(obj)
-            if isstruct(obj.memmap) && isfield(obj.memmap, 'fid')
-                fclose(obj.memmap.fid);
-            end
             obj.memmap_data = [];
             obj.memmap_matrix_data = [];
             obj.memmap = [];
@@ -308,7 +322,7 @@ classdef MovieViewer < handle
             guidata(obj.figure,data);
         end
         
-        function updateFrameFromFile(obj, frame, channel, opt)
+        function updateFrameFromFile(obj, channel, opt)
             data=guidata(obj.figure);
             obj.memmap_data = (obj.CurrFrame - 1) * obj.n_ch + channel;
             if ~iscell(obj.filename)
@@ -339,19 +353,11 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
     % Check if filename is a string (single TIFF file)
     if ischar(filename)
         [folder, file, ext] = fileparts(filename);
-        
         if isempty(ext)  % Case when we provide a folder, not a file
             % Read all TIFF files in the folder
-            temp = dir(fullfile(folder, file, '*.tif*'));
-            tv.filename = cell(1, length(temp));
-            for rep = 1:length(temp)
-                tv.filename{rep} = fullfile(folder, temp(rep).name);
-            end
-            tv.numFrames = length(temp);
-            filename = tv.filename;
+            tv.memmap_data = tv.filename;
         else
             tv.filename = filename;
-            tv.numFrames = 1; % Single file
             if nargin<3 || isempty(info)
             info = readtifftags(filename);
             end

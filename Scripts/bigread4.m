@@ -200,6 +200,11 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
             he_w=t_per_w*info(1).TileWidth;
             he_h=t_per_h*info(1).TileLength;
     end
+    if info(1).PhotometricInterpretation==2
+        colorbytes=length(info(1).BitsPerSample);
+    else
+        colorbytes=1;
+    end
     if isfield(info,'SampleFormat')
         sf = info(1).SampleFormat;
     else
@@ -257,14 +262,14 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         %         bps=1;
     end
     if strcmpi(form,'double')
-        imData=zeros(he_h,he_w,lastframe-sframe+1,'single');
+        imData=zeros(he_h,he_w,colorbytes,lastframe-sframe+1,'single');
         if(bo)
             formatline='ieee-be.l64';
         else
             formatline='ieee-le.l64';
         end
     else
-        imData=zeros(he_h,he_w,lastframe-sframe+1,form);
+        imData=zeros(he_h,he_w,colorbytes,lastframe-sframe+1,form);
         if(bo)
             formatline='ieee-be';
         else
@@ -308,10 +313,10 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         end
         switch off_type
             case 'strip'
-                he_step=[he_w he_h];
+                he_step=[he_w colorbytes he_h];
                 n_steps=[];
             case 'tile'
-                he_step=[he_w/t_per_w he_h/t_per_h];
+                he_step=[he_w/t_per_w colorbytes he_h/t_per_h];
                 n_steps=[t_per_w t_per_h];
         end
         % The StripOffsets field provides the offset to the first strip. Based on
@@ -422,6 +427,7 @@ else
     disp('Uknown file extension. This function only has support for .tiff and .hdf5 files. Will call bioformats plugin.')
     imData=try_bio(path_to_file);
 end
+imData=squeeze(imData);
 
 function imData=try_bio(path_to_file)
 if ~exist('bfopen.m','file')
@@ -439,7 +445,7 @@ size_format=size(imData,1:2);
 for cnt = sframe:lastframe
     switch opt
         case 'even'
-            imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format,n_steps);
+            imData(:,:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format,n_steps);
             if cnt~=lastframe
                 fseek(fp,gapimages,'cof');
             end
@@ -447,7 +453,7 @@ for cnt = sframe:lastframe
             temp_off=info(cnt).(offset_field);
             if ~isempty(temp_off)
                 fseek(fp,info(cnt).(offset_field)(1),'bof');
-                imData(:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format,n_steps);
+                imData(:,:,:,cnt-sframe+1)=read_frame(fp,he_step,off_type,form,size_format,n_steps);
             else
                 lastframe=cnt;
             end
@@ -459,22 +465,22 @@ function imData_next=read_frame(fp,he_step,off_type,form,size_format,n_steps)
 switch off_type
     case 'strip'
         if strcmpi(form,'double')
-            tmp1 = fread(fp, he_step, form)';
+            tmp1 = fread(fp, [prod(he_step(1:2)) he_step(3)], form)';
             imData_next=cast(tmp1,'single');
         else
-            imData_next=fread(fp, he_step, ['*',form])';
+            imData_next=fread(fp, [prod(he_step(1:2)) he_step(3)], ['*',form])';
         end
+        imData_next=permute(reshape(imData_next,[he_step(3) he_step(2) he_step(1)]),[1 3 2 4]);
     case 'tile'
         for read_rep_h=1:n_steps(2)
             for read_rep_w=1:n_steps(1)
                 if strcmpi(form,'double')
                     imData_next=zeros(size_format,'single');
-
-                    imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=cast(fread(fp, he_step, form)','single');
+                    imData_next(1+(read_rep_h-1)*he_step(3):read_rep_h*he_step(3),1+(read_rep_w-1)*prod(he_step(1:2)):read_rep_w*prod(he_step(1:2)),cnt-sframe+1,:)=permute(cast(fread(fp, he_step, form)','single'),[1 3 2 4]);
                 else
                     imData_next=zeros(size_format,form);
-
-                    imData_next(1+(read_rep_h-1)*he_step(2):read_rep_h*he_step(2),1+(read_rep_w-1)*he_step(1):read_rep_w*he_step(1),cnt-sframe+1)=fread(fp, he_step, ['*',form])';
+                    
+                    imData_next(1+(read_rep_h-1)*he_step(3):read_rep_h*he_step(3),1+(read_rep_w-1)*prod(he_step(1:2)):read_rep_w*prod(he_step(1:2)),cnt-sframe+1,:)=permute(fread(fp, he_step, ['*',form])',[1 3 2 4]);
                 end
             end
         end
