@@ -135,7 +135,13 @@ classdef MovieViewer < handle
             end
             [folder,file,ext]=fileparts(filename);
             if any(strcmp(ext, {'.tif', '.tiff'}))
+                try
                 info = readtifftags(filename);
+                catch
+                    info=imfinfo(filename);
+                    info.ImageWidth=info.Width;
+                    info.ImageHeight=info.Height;
+                end
             else
                 info = [];
             end
@@ -339,7 +345,7 @@ classdef MovieViewer < handle
             else
                 datavals = bigread4(obj.filename{obj.memmap_data}, 1, obj.n_ch);
             end
-            imgData = datavals';
+            imgData = datavals(:,:,1)';
             if opt == 0
                 set(data.im{channel}, 'CData', imgData);
             else

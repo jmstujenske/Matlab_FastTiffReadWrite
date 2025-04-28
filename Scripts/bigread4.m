@@ -87,6 +87,18 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         providedinfo=true;
         numFrames=length(info);
     end
+    %if not a tif but labeled as one
+    if isfield(info,'Format')
+        if ~strcmp(info.Format,'tif') & ~strcmp(info.Format,'tiff')
+        imData=imread(path_to_file);
+        return;
+        end
+    elseif isfield(info,'SampleFormat')
+        if info.SampleFormat~=1
+            imData=imread(path_to_file);
+            return;
+        end
+    end
     imagej_bigtiff=false;
     if isfield(info,'ImageDescription')
         if contains(path_to_file,'.ome')

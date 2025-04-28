@@ -483,7 +483,6 @@ for j=1:IfdLength
     TagCode=fread(fp,1,'uint16=>uint16');
     TagType=fread(fp,1,'uint16=>uint16')';
     TagLength=fread(fp,1,'uint64=>uint64');
-    
     switch(TagType)
         case 1 %byte
             nbyte=TagLength*1;
