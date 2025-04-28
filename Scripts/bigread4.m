@@ -93,11 +93,6 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         imData=imread(path_to_file);
         return;
         end
-    elseif isfield(info,'SampleFormat')
-        if info.SampleFormat~=1
-            imData=imread(path_to_file);
-            return;
-        end
     end
     imagej_bigtiff=false;
     if isfield(info,'ImageDescription')
