@@ -62,24 +62,27 @@ classdef MovieViewer < handle
             if ischar(filename)
                 obj.resolveFileName(filename);
                 [~,~,ext]=fileparts(filename);
+                if ~isempty(ext)
                 info = obj.readTiffInfo;
+                else
+                    info=[];
+                end
                 obj.setNumFrames(info);
                 uneven_flag = obj.checkUnevenFlag(info);
                 obj.setupMemoryMapping(filename, obj.n_ch, info, uneven_flag);
                 if isempty(info)
+                    if iscell(obj.filename)
                     info = obj.readTiffInfo(obj.filename{1});
-                else
+                    end
                 end
                 dims = obj.getDimensions(info);
                 file=filename;
-            elseif isnumeric(filename)
+            else
                 if isempty(obj.n_ch), obj.n_ch = 1; end
                 obj.setupFromMatrix(filename, obj.n_ch);
                 file='Matrix';
                 dims=size(filename);
                 ext=[];
-            else
-                error('Input type not recognized.');
             end
             obj.setupFigure(file, ext);
             obj.setupAxes(dims, obj.n_ch);
@@ -126,10 +129,13 @@ classdef MovieViewer < handle
             end
         end
         
-        function info = readTiffInfo(obj)
-            [folder,file,ext]=fileparts(obj.filename);
+        function info = readTiffInfo(obj,filename)
+            if nargin<2
+                filename=obj.filename;
+            end
+            [folder,file,ext]=fileparts(filename);
             if any(strcmp(ext, {'.tif', '.tiff'}))
-                info = readtifftags(obj.filename);
+                info = readtifftags(filename);
             else
                 info = [];
             end
@@ -189,7 +195,6 @@ classdef MovieViewer < handle
                     obj.type='tif';
                 case '.bin'
                     obj.setupBinaryMapping(filename, n_ch);
-                    obj.memmap_data=obj.memmap.Data;
                     obj.type='binary';
                 otherwise
                     obj.map_type = 'file';
@@ -237,8 +242,12 @@ classdef MovieViewer < handle
             linkaxes(cat(1, obj.ax{:}));
         end
 
-        function dims = getDimensions(~, info)
+        function dims = getDimensions(obj, info)
+            if ~isempty(info)
             dims = [info(1).ImageHeight info(1).ImageWidth];
+            else
+                dims=[obj.height obj.width];
+            end
         end
 
         function setupSlider(tv)
@@ -389,7 +398,7 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
     end
 end
 
-function tv = setupBinaryMapping(tv, evt, filename, n_ch, framesize, form)
+function tv = setupBinaryMapping(tv, filename, n_ch, framesize, form)
     % setupBinaryMapping - Set up memory mapping for binary files
     %
     % Arguments:
@@ -411,16 +420,22 @@ function tv = setupBinaryMapping(tv, evt, filename, n_ch, framesize, form)
     % end
 
     % Set up memory mapping
-    tv.memmap_matrix = memmapfile(filename, 'Format', {form, [framesize, length(tv.memmap.Data)], 'allchans'}, 'Writable', false);
-    tv.memmap_matrix_data = tv.memmap.Data.allchans;
-    
+
+                if isempty(tv.n_ch)
+                    userinputs = inputdlg({'Number of channels:','Height and Width (as matrix):','Data Format:'});
+                    tv.n_ch = str2double(userinputs{1});
+                    framesize = str2num(userinputs{2});
+                    tv.height=framesize(1);
+                    tv.width=framesize(2);
+                    form=userinputs{3};
+                end
+    tv.memmap_matrix = memmapfile(filename, 'Format', {form, [framesize], 'allchans'}, 'Writable', false);
+n=length(tv.memmap_matrix.Data);
+    tv.memmap_matrix = memmapfile(filename, 'Format', {form, [framesize n], 'allchans'}, 'Writable', false);
     % Store mapped data
-    tv.memmap_matrix_data = tv.memmap_matrix.Data.allchans;
-    tv.width = framesize(2);
-    tv.height = framesize(1);
-    
+    tv.memmap_matrix_data = tv.memmap_matrix.Data.allchans;    
     % Number of frames is determined by the binary file size
-    tv.numFrames = length(tv.memmap.Data) / n_ch;
+    tv.numFrames = n / tv.n_ch;
 end
 
     end
