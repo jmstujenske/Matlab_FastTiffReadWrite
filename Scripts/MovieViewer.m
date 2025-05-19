@@ -316,13 +316,17 @@ classdef MovieViewer < handle
             imgData = obj.memmap_data(frame).(dataField);
             else
             [y_len, x_len] = size(obj.memmap_matrix_data, 1:2);
-            imgData = obj.memmap_matrix_data(:, (1:x_len/obj.n_ch) + (channel-1) * x_len/obj.n_ch, frame);
+            if strcmp(obj.type,'matrix')
+                imgData = obj.memmap_matrix_data(:,:,(frame-1)*obj.n_ch+channel);    
+            else
+                imgData = obj.memmap_matrix_data(:, (1:x_len/obj.n_ch) + (channel-1) * x_len/obj.n_ch, frame);
+            end
             end
 
             % if strcmp(obj.type, 'binary') || strcmp(obj.type, 'matrix')
             %     imgData = imgData';
             % end
-            if strcmp(obj.type, 'tif')
+            if ~strcmp(obj.type, 'binary')
                 imgData = imgData';
             end
             if opt == 0
@@ -345,7 +349,7 @@ classdef MovieViewer < handle
             else
                 datavals = bigread4(obj.filename{obj.memmap_data}, 1, obj.n_ch);
             end
-            imgData = datavals(:,:,1)';
+            imgData = datavals(:,:,1);
             if opt == 0
                 set(data.im{channel}, 'CData', imgData);
             else
