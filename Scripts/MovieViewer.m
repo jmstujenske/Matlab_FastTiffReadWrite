@@ -326,7 +326,7 @@ classdef MovieViewer < handle
             % if strcmp(obj.type, 'binary') || strcmp(obj.type, 'matrix')
             %     imgData = imgData';
             % end
-            if ~strcmp(obj.type, 'binary')
+            if ~strcmp(obj.type, 'binary') & ~strcmp(obj.type, 'matrix')
                 imgData = imgData';
             end
             if opt == 0
