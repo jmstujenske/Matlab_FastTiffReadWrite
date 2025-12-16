@@ -123,7 +123,7 @@ classdef MovieViewer < handle
 
         function setNumFrames(obj,info)
             if isempty(info)
-                obj.numFrames=length(obj.filename);
+                obj.numFrames=size(obj.filename,3);
             else
                 obj.numFrames=length(info);
             end
@@ -214,7 +214,11 @@ classdef MovieViewer < handle
         
         function setupFromMatrix(obj, filename, n_ch)
             % filename = permute(filename, [2 1 3]);
-            [height, width, obj.numFrames] = size(filename);
+            [height, width] = size(filename,1:2);
+            obj.height=height;
+            obj.width=width;
+            filename=reshape(filename,height,width,obj.n_ch,[]);
+            obj.numFrames=size(filename,4);
             % datavals = obj.processChannels(filename, height, width, n_ch);
             % obj.memmap_data = cell2struct(datavals, obj.generateChannelNames(n_ch), 2)';
             obj.memmap_matrix_data = filename;
@@ -315,12 +319,7 @@ classdef MovieViewer < handle
             if isempty(obj.memmap_matrix_data)
             imgData = obj.memmap_data(frame).(dataField);
             else
-            [y_len, x_len] = size(obj.memmap_matrix_data, 1:2);
-            if strcmp(obj.type,'matrix')
-                imgData = obj.memmap_matrix_data(:,:,(frame-1)*obj.n_ch+channel);    
-            else
-                imgData = obj.memmap_matrix_data(:, (1:x_len/obj.n_ch) + (channel-1) * x_len/obj.n_ch, frame);
-            end
+            imgData = obj.memmap_matrix_data(:,:,channel,frame);    
             end
 
             % if strcmp(obj.type, 'binary') || strcmp(obj.type, 'matrix')
@@ -441,7 +440,7 @@ function tv = setupBinaryMapping(tv, filename, n_ch, framesize, form)
                 end
     tv.memmap_matrix = memmapfile(filename, 'Format', {form, [framesize], 'allchans'}, 'Writable', false);
 n=length(tv.memmap_matrix.Data);
-    tv.memmap_matrix = memmapfile(filename, 'Format', {form, [framesize n], 'allchans'}, 'Writable', false);
+    tv.memmap_matrix = memmapfile(filename, 'Format', {form, [framesize tv.n_ch n/tv.n_ch], 'allchans'}, 'Writable', false);
     % Store mapped data
     tv.memmap_matrix_data = tv.memmap_matrix.Data.allchans;    
     % Number of frames is determined by the binary file size
@@ -472,6 +471,15 @@ end
 set(data.h.slide,'Value',obj.CurrFrame);
 guidata(tv.figure,data);
 displayFrame(tv);
+end
+
+function fps_but_down(~,~,tv)
+answer = inputdlg('Specify frames per second');
+            data = guidata(tv.figure);
+            fps=str2double(answer{1});
+            tv.fps = max(fps,.001);
+            set(data.timer,'Period',max(round(1 / tv.fps, 3), .001));
+            guidata(tv.figure,data);
 end
 
 function allimages = mm_proj(~, ~, tv, type)
@@ -527,9 +535,7 @@ function allimages = mm_proj(~, ~, tv, type)
 end
 
 % Function to compute projection for each channel
-function projection = compute_projection(tv, type, ch, max_time, f_out, sub_handle_popup, n_subplots)
-    projection = [];
-    
+function projection = compute_projection(tv, type, ch, max_time, f_out, sub_handle_popup, n_subplots)    
     if isempty(tv.memmap_matrix_data)
         projection = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_subplots, 'memmap_data');
     else
@@ -552,22 +558,29 @@ function P = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_s
     %   data_type         - 'memmap_data' or 'memmap_matrix_data'
     
     tic;
-    
+    switch type
+        case 'max'
+            func=@(x,y) max(x,max(y,[],4));
+        case 'mean'
+            func=@(x,y) imadd(x,sum(y,4)/tv.numFrames);
+    end
     if strcmp(data_type, 'memmap_data')
         % Process memory-mapped data
-        P = double(tv.memmap_data(1).(['channel', num2str(ch)])) / tv.numFrames;
+        P = double(tv.memmap_data(1).(['channel', num2str(ch)]));
         
         for b = 2:length(tv.memmap_data)
-            P = imadd(P, double(tv.memmap_data(b).(['channel', num2str(ch)])) / tv.numFrames);
+            P = func(P, double(tv.memmap_data(b).(['channel', num2str(ch)])));
             
             if mod(b, 1000) == 0
                 figure(f_out); subplot(1, n_subplots, ch);
                 imagesc(P'); axis off; colormap('gray'); drawnow;
             end
             
-            if toc > max_time / 2
+            if toc > max_time / tv.n_ch
                 disp(['Max time reached for channel ', num2str(ch), '.']);
+                if strcmp(type,'mean')
                 P = P * (tv.numFrames / b);
+                end
                 disp(['Frames averaged: ', num2str(b)]);
                 break;
             end
@@ -578,16 +591,26 @@ function P = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_s
         [y_len, x_len] = size(tv.memmap_matrix_data, 1:2);
         subdiv = 5; % Process in chunks to avoid memory overload
         n_subdiv = ceil(tv.numFrames / subdiv);
-        P = zeros(x_len, y_len / tv.n_ch, 'double');
-        
+        P = zeros(x_len, y_len, 'double');
+            if ~strcmp(tv.type, 'binary') & ~strcmp(tv.type, 'matrix')
+            P = zeros(x_len, y_len, 'double');
+            else
+            P = zeros(y_len, x_len, 'double');
+            end        
         for rep = 1:n_subdiv
             frames = 1 + (rep - 1) * subdiv : min(subdiv * rep, tv.numFrames);
-            temp_frames = sum(tv.memmap_matrix_data(:, (1:x_len/tv.n_ch) + (ch-1) * x_len/tv.n_ch, frames), 3) / tv.numFrames;
-            P = imadd(P, permute(temp_frames,[2 1 3]));
+            temp_frames = tv.memmap_matrix_data(:,:,ch, frames);
+            if ~strcmp(tv.type, 'binary') & ~strcmp(tv.type, 'matrix')
+            P = func(P, permute(temp_frames,[2 1 3]));
+            else
+            P = func(P, temp_frames);
+            end
             
-            if toc > max_time / 2
+            if toc > max_time / tv.n_ch
                 disp(['Max time reached for channel ', num2str(ch), '.']);
+                if strcmp(type,'mean')
                 P = P / (rep * subdiv);
+                end
                 disp(['Frames averaged: ', num2str(rep * subdiv)]);
                 break;
             end
@@ -689,7 +712,7 @@ set(tv.figure, 'pointer', 'watch');
 
 drawnow;
 pixels=inpolygon(data.ROI_precalc.x,data.ROI_precalc.y,data.ROI.Position(:,1),data.ROI.Position(:,2));
-in=find(pixels);
+in_pix=find(pixels);
 % pixel_mask=zeros(data.ROI_precalc.frame_size);
 % pixel_mask(pixels)=1;
 % pixel_mask=logical(pixel_mask);
@@ -703,7 +726,13 @@ if isempty(tv.memmap_matrix_data)
 else
     for b=1:tv.n_ch
         % ins=find(pixel_mask(:));
-        z_series(b,:)=mean(tv.memmap_matrix_data(in'+(b-1)*numel(pixels)+(0:tv.numFrames-1)*numel(pixels)*tv.n_ch),1);
+        [~,x_pix]=size(ax.Children(in).CData,1:2);
+        [~,x_mat]=size(tv.memmap_matrix_data,1:2);
+        if x_pix~=x_mat %%concatenated orientation
+        z_series(b,:)=mean(tv.memmap_matrix_data(in_pix'+(b-1)*numel(pixels)+(0:tv.numFrames-1)*numel(pixels)*tv.n_ch),1);
+        else
+        z_series(b,:)=mean(tv.memmap_matrix_data(in_pix'+((b-1):tv.n_ch:tv.numFrames+b-2)*numel(pixels)),1);
+        end
     end
 end
 f_out=figure;
