@@ -220,6 +220,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
     if sf==4
         error('Unknown data format.')
     end
+    if ischar(sf)
     switch lower(sf)
         case {char("two's complement signed integer")}
             sf=2;
@@ -230,9 +231,9 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         case {'undefined data format'}
             error('Unknown data format.')
     end
-
+    end
     if (bd==64)
-        switch sf
+        switch sf(1)
             case 3
                 form='double';
             case 2
@@ -242,7 +243,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         end
         %         bps=8;
     elseif(bd==32)
-        switch sf
+        switch sf(1)
             case 3
                 form='single';
             case 2
@@ -252,7 +253,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         end
         %         bps=4;
     elseif (bd==16)
-        switch sf
+        switch sf(1)
             case 1
                 form='uint16';
             case 2
@@ -260,7 +261,7 @@ if strcmpi(ext,'.tiff') || strcmpi(ext,'.tif')
         end
         %         bps=2;
     elseif (bd==8)
-        switch sf
+        switch sf(1)
             case 1
                 form='uint8';
             case 2
