@@ -238,7 +238,7 @@ classdef MovieViewer < handle
         end
         
         function setupFigure(obj, file, ext)
-            obj.figure = figure('Units', 'normalized', 'Position', [.1 .1 .6 .6], 'AutoResizeChildren', 'off', 'CloseRequestFcn', @(x, event) obj.closeFigure(x, event), 'Name', [file, ext], 'NumberTitle', 'off');
+            obj.figure = figure('Units', 'normalized', 'Position', [.1 .1 .4+.2*(obj.n_ch-1) .6], 'AutoResizeChildren', 'off', 'CloseRequestFcn', @(x, event) obj.closeFigure(x, event), 'Name', [file, ext], 'NumberTitle', 'off');
         end
         
         function setupAxes(obj, dims, n_ch)
@@ -246,7 +246,7 @@ classdef MovieViewer < handle
             height=dims(1);
             width=dims(2);
             for rep = 1:obj.n_ch
-                obj.ax{rep} = axes('Units', 'normalized', 'Parent', obj.figure, 'Position', [0+(rep-1)*.5 0 .5 .89], 'XTick', [], 'YTick', []);
+                obj.ax{rep} = axes('Units', 'normalized', 'Parent', obj.figure, 'Position', [0+(rep-1)*(1/obj.n_ch) 0 (1/obj.n_ch) .89], 'XTick', [], 'YTick', []);
                 set(obj.ax{rep}, 'XLim', [1 width], 'YLim', [1 height]);
             end
             linkaxes(cat(1, obj.ax{:}));
@@ -268,7 +268,7 @@ classdef MovieViewer < handle
         data.h.setfps = uicontrol('style','pushbutton','units','normalized','position',[.65 .92 .1 .05],'String','Set FPS','callback',{@(hObject,event) fps_but_down(hObject,event,tv)});
         data.h.maxp = uicontrol('style','pushbutton','units','normalized','position',[.8 .92 .1 .05],'String','Max P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'max')});
         data.h.meanp = uicontrol('style','pushbutton','units','normalized','position',[.9 .92 .1 .05],'String','Mean P','callback',{@(hObject,event) mm_proj(hObject,event,tv,'mean')});
-        data.h.ROI = uicontrol('style','pushbutton','units','normalized','position',[.75 .92 .05 .05],'String','ROI ts','callback',{@(hObject,event) ROI_select(hObject,event,tv)});
+        data.h.ROI = uicontrol('style','pushbutton','units','normalized','position',[.75 .92 .05 .05],'String','ROI','callback',{@(hObject,event) ROI_select(hObject,event,tv)});
         if tv.numFrames==1
             data.h.slide.Visible=false;
             data.h.play.Visible=false;
@@ -494,28 +494,32 @@ function allimages = mm_proj(~, ~, tv, type)
     % Determine the number of subplots
     n_subplots = tv.n_ch + (tv.n_ch > 1); % Add extra plot for merged channels if more than one channel
     
-    sub_handle_popup = zeros(1, n_subplots); % Initialize subplots
     P = cell(1, tv.n_ch); % Cell to store each channel's projection
-
+    axes_holder=cell(1,tv.n_ch);
+    image_handle=cell(1,n_subplots);
     switch tv.map_type
         case 'mem'
             for ch = 1:tv.n_ch
                 tic;
-                sub_handle_popup(ch) = subplot(1, n_subplots, ch);
-                
+                axes_holder{ch}=axes('Units', 'normalized', 'Parent', f_out,'Position', [0+(ch-1)*(1/tv.n_ch) 0 (1/tv.n_ch) .89]);
+                imagesc(zeros(tv.height,tv.width),'Parent',axes_holder{ch});
+                image_handle{ch}=axes_holder{ch}.Children(1);
+                    text(.5,1.05,[type, ' projection'],'HorizontalAlignment','center','Units','normalized');
+                    axis off; colormap('gray'); drawnow;
                 % Compute projection based on type ('mean' or 'max')
-                P{ch} = compute_projection(tv, type, ch, max_time, f_out, sub_handle_popup, n_subplots);
+                P{ch} = compute_projection(tv, type, ch, max_time, f_out, image_handle{ch}, n_subplots);
                 
                 % Display image for each channel
                 if tv.n_ch==1
                     color_name{ch}=[];
                 end
-                display_image(P{ch}, f_out, sub_handle_popup(ch), tv.type, color_name{ch});
+                title(color_name{ch});
+                display_image(P{ch}, image_handle{ch}, tv.type);
             end
             
             % Handle merged channel view if more than one channel
             if tv.n_ch > 1
-                sub_handle_popup(end) = subplot(1, n_subplots, n_subplots);
+                image_handle(end)=imagesc(zeros(tv.height,tv.width));
                 allimages = merge_channels(P, tv.type);
                 imagesc(allimages); axis off;
                 title('Merge');
@@ -524,7 +528,7 @@ function allimages = mm_proj(~, ~, tv, type)
             end
             
             disp('Projection Done.');
-            linkaxes(sub_handle_popup); % Link the subplots for panning and zooming together
+            linkaxes(cat(1,axes_holder{:})); % Link the subplots for panning and zooming together
             
         case 'file'
             warning('Could not memory map, so projection would take too long.');
@@ -560,20 +564,18 @@ function P = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_s
     tic;
     switch type
         case 'max'
-            func=@(x,y) max(x,max(y,[],4));
+            func=@(x,y) max(double(x),max(double(y),[],4));
         case 'mean'
-            func=@(x,y) imadd(x,sum(y,4)/tv.numFrames);
+            func=@(x,y) imadd(double(x),sum(double(y),4)/tv.numFrames);
     end
     if strcmp(data_type, 'memmap_data')
         % Process memory-mapped data
         P = double(tv.memmap_data(1).(['channel', num2str(ch)]));
-        
         for b = 2:length(tv.memmap_data)
             P = func(P, double(tv.memmap_data(b).(['channel', num2str(ch)])));
             
             if mod(b, 1000) == 0
-                figure(f_out); subplot(1, n_subplots, ch);
-                imagesc(P'); axis off; colormap('gray'); drawnow;
+                display_image(P, sub_handle_popup, tv.type)
             end
             
             if toc > max_time / tv.n_ch
@@ -589,7 +591,7 @@ function P = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_s
     elseif strcmp(data_type, 'memmap_matrix_data')
         % Process memory-mapped matrix data
         [y_len, x_len] = size(tv.memmap_matrix_data, 1:2);
-        subdiv = 5; % Process in chunks to avoid memory overload
+        subdiv = 500; % Process in chunks to avoid memory overload
         n_subdiv = ceil(tv.numFrames / subdiv);
         P = zeros(x_len, y_len, 'double');
             if ~strcmp(tv.type, 'binary') & ~strcmp(tv.type, 'matrix')
@@ -615,8 +617,7 @@ function P = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_s
                 break;
             end
             
-            figure(f_out); subplot(1, n_subplots, ch);
-            imagesc(P'); axis off; colormap('gray'); drawnow;
+            display_image(P, sub_handle_popup, tv.type)
         end
     else
         error('Unknown data_type specified. Use ''memmap_data'' or ''memmap_matrix_data''.');
@@ -624,14 +625,13 @@ function P = process_memmap(tv, ch, type, max_time, f_out, sub_handle_popup, n_s
 end
 
 % Function to display an image
-function display_image(image_data, f_out, subplot_handle, img_type, title_name)
-    figure(f_out); subplot(subplot_handle);
-    if strcmp(img_type, 'binary')
-        imagesc(image_data); axis off; colormap('gray'); drawnow;
+function display_image(image_data, subplot_handle, img_type)
+    if strcmp(img_type, 'binary') || strcmp(img_type,'matrix')
+        set(subplot_handle,'CData',image_data); 
     else
-        imagesc(image_data'); axis off; colormap('gray'); drawnow;
+        set(subplot_handle,'CData',image_data');
     end
-    title(title_name);
+    drawnow;
 end
 
 % Function to merge channels for visualization
@@ -737,7 +737,7 @@ else
 end
 f_out=figure;
 set(f_out, 'pointer', 'watch');
-colors={'r','g'};
+colors={'r','g','b'};
 for b=1:tv.n_ch
     plot(z_series(b,:),'-','Color',colors{b},'LineWidth',.5);
     hold on;
