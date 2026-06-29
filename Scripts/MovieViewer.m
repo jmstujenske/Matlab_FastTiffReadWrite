@@ -114,6 +114,7 @@ classdef MovieViewer < handle
             if isempty(ext)
                 temp = dir(fullfile(folder, file, '*.tif*'));
                 obj.filename = arrayfun(@(x) fullfile(x.folder, x.name), temp, 'UniformOutput', false);
+                obj.numFrames=length(obj.filename);
             elseif any(strcmp(ext, {'.tif', '.tiff', '.bin'}))
                 obj.filename = filename;
             else
@@ -123,7 +124,11 @@ classdef MovieViewer < handle
 
         function setNumFrames(obj,info)
             if isempty(info)
+                if ~iscell(obj.filename)
                 obj.numFrames=size(obj.filename,3);
+                else
+                    obj.numFrames=length(obj.filename);
+                end
             else
                 obj.numFrames=length(info);
             end
