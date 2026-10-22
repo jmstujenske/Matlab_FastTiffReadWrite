@@ -201,7 +201,6 @@ classdef MovieViewer < handle
                     obj.setupTiffMapping(filename, n_ch, info);
                     if ~iscell(obj.memmap_data)
                     obj.memmap_data=obj.memmap.Data;
-                    obj.map_type = 'file';
                     end
                     obj.type='tif';
                 case '.bin'
@@ -396,10 +395,13 @@ function tv = setupTiffMapping(tv, filename, n_ch, info)
             if ~uneven_flag
                 tv.map_type = 'mem';
                 tv.memmap = memory_map_tiff(filename, [], n_ch, true);
-                if isfield(info, 'GapBetweenImages') && info(1).GapBetweenImages == 0
+                if ~isfield(info, 'GapBetweenImages') || (isfield(info, 'GapBetweenImages') && info(1).GapBetweenImages == 0)
 
                     % tv.memmap = memory_map_tiff(filename,[],n_ch,true);
-                                tv.memmap_matrix = memory_map_tiff(filename,'matrix',n_ch,true);
+                    if isempty(n_ch)
+                        n_ch=1;
+                    end
+                                tv.memmap_matrix = memory_map_tiff(filename,'matrix',1,true,[n_ch length(info)]);
                                 tv.memmap_matrix_data = tv.memmap_matrix.Data.allchans;           
                 end
                 
